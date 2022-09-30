@@ -7,19 +7,18 @@ from os.path import join
 
 import numpy as np
 import scipy
-# sklearn stuff: Model Specific Libraries
 from sklearn.model_selection import KFold
 from utils import PATHS, correlation_score, preprocessing, setup_model
 
 config = {
-    "output_dir": "/arc/project/st-jiaruid-1/shenoy/krr-rbf-run",
+    "output_dir": "/scratch/st-jiaruid-1/shenoy/projects/scRNA-competition/output/krr-rbf-exp",
     "seed": 42,
     "scale": 10,
     "alpha": 0.1,
     "preprocessing_strategy": "TruncatedSVD",
     "model": "rbf_krr",
-    "cite_components_rna": 10,
-    "cite_components_proteins": 1,
+    "cite_components_rna": 64,
+    "cite_components_proteins": 64,
     "multiome_components_atac": 50,
     "multiome_components_rna": 50,
 }
