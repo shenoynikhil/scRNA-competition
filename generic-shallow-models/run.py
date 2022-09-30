@@ -1,20 +1,18 @@
 import gc
+import logging
+import pickle
+from datetime import datetime
 from os import makedirs
 from os.path import join
-from datetime import datetime
 
-import logging
 import numpy as np
-import pickle
-
+import scipy
 # sklearn stuff: Model Specific Libraries
 from sklearn.model_selection import KFold
-
-import scipy
 from utils import PATHS, correlation_score, preprocessing, setup_model
 
 config = {
-    "output_dir": '/arc/project/st-jiaruid-1/shenoy/krr-rbf-run',
+    "output_dir": "/arc/project/st-jiaruid-1/shenoy/krr-rbf-run",
     "seed": 42,
     "scale": 10,
     "alpha": 0.1,
@@ -29,12 +27,10 @@ config = {
 
 def main():
     # Setup output directory
-    output_dir = join(config['output_dir'], datetime.now().strftime("%d_%m_%Y-%H_%M"))
+    output_dir = join(config["output_dir"], datetime.now().strftime("%d_%m_%Y-%H_%M"))
     makedirs(output_dir, exist_ok=True)
     logging.basicConfig(
-        filename=join(output_dir, 'output.log'),
-        filemode='a',
-        level=logging.INFO
+        filename=join(output_dir, "output.log"), filemode="a", level=logging.INFO
     )
 
     # Load Data
@@ -101,8 +97,8 @@ def main():
     # Again garbage collection to reduce unnecessary memory usage
     gc.collect()
 
-    logging.info(f'Scores on 5-fold CV: {scores}')
-    
+    logging.info(f"Scores on 5-fold CV: {scores}")
+
 
 if __name__ == "__main__":
     main()

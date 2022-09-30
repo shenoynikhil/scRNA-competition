@@ -1,10 +1,10 @@
 import logging
-import scipy
-import numpy as np
 
+import numpy as np
+import scipy
+from sklearn.decomposition import TruncatedSVD
 from sklearn.gaussian_process.kernels import RBF
 from sklearn.kernel_ridge import KernelRidge
-from sklearn.decomposition import TruncatedSVD
 
 PATHS = {
     "train_multi_inputs": "/arc/project/st-jiaruid-1/yinian/multiome/sparse-data/train_multi_inputs_values.sparse.npz",
