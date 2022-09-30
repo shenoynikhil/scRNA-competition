@@ -1,5 +1,9 @@
-import logging
 import gc
+from os import makedirs
+from os.path import join
+from datetime import datetime
+
+import logging
 import numpy as np
 import pickle
 
@@ -9,9 +13,8 @@ from sklearn.model_selection import KFold
 import scipy
 from utils import PATHS, correlation_score, preprocessing, setup_model
 
-logging.basicConfig(level=logging.INFO)
-
 config = {
+    "output_dir": '/arc/project/st-jiaruid-1/shenoy/krr-rbf-run',
     "seed": 42,
     "scale": 10,
     "alpha": 0.1,
@@ -25,6 +28,15 @@ config = {
 
 
 def main():
+    # Setup output directory
+    output_dir = join(config['output_dir'], datetime.now().strftime("%d_%m_%Y-%H_%M"))
+    makedirs(output_dir, exist_ok=True)
+    logging.basicConfig(
+        filename=join(output_dir, 'output.log'),
+        filemode='a',
+        level=logging.INFO
+    )
+
     # Load Data
     logging.info("Loading data")
     x = scipy.sparse.load_npz(PATHS["train_cite_inputs"])
@@ -55,7 +67,7 @@ def main():
     logging.info("Setting up the model")
     model = setup_model(config)
 
-    score = []
+    scores = []
     for i, (tr_indices, val_indices) in enumerate(kf.split(all_row_indices)):
         # preparing ith fold, for y_val we will use (not)transformed vector to calculate scores
         logging.info(f"{i}th fold")
@@ -74,13 +86,13 @@ def main():
         del x_train, y_train
 
         # Save the model
-        pkl_filename = f"model_{i}th_fold.pkl"
+        pkl_filename = join(output_dir, f"model_{i}th_fold.pkl")
         with open(pkl_filename, "wb") as file:
             pickle.dump(model, file)
 
         print("Predicting and calculating metrics")
-        score.append(
-            correlation_score(y_val.toarray(), model.predict(x_val) @ pca_y.components_)
+        scores.append(
+            correlation_score(y_val, model.predict(x_val) @ pca_y.components_)
         )
 
         del x_val, y_val
@@ -89,6 +101,8 @@ def main():
     # Again garbage collection to reduce unnecessary memory usage
     gc.collect()
 
+    logging.info(f'Scores on 5-fold CV: {scores}')
+    
 
 if __name__ == "__main__":
     main()
