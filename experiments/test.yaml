@@ -4,9 +4,11 @@ paths:
   y: /arc/project/st-jiaruid-1/yinian/multiome/sparse-data/train_cite_targets_values.sparse.npz
   x_test: /arc/project/st-jiaruid-1/yinian/multiome/sparse-data/test_cite_inputs_values.sparse.npz
 seed: 42
-scale: 10
-alpha: 0.1
-preprocessing_strategy: TruncatedSVD
+preprocessing: TruncatedSVD
+preprocessing_params:
+  input_dim: 1
+  output_dim: 1
 model: rbf_krr
-input_dim_svd: 1
-output_dim_svd: 1
+model_params:
+  scale: 10
+  alpha: 0.1
