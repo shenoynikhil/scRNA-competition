@@ -6,15 +6,6 @@ from sklearn.decomposition import TruncatedSVD
 from sklearn.gaussian_process.kernels import RBF
 from sklearn.kernel_ridge import KernelRidge
 
-PATHS = {
-    "train_multi_inputs": "/arc/project/st-jiaruid-1/yinian/multiome/sparse-data/train_multi_inputs_values.sparse.npz",
-    "train_multi_targets": "/arc/project/st-jiaruid-1/yinian/multiome/sparse-data/train_multi_targets_values.sparse.npz",
-    "test_multi_inputs": "/arc/project/st-jiaruid-1/yinian/multiome/sparse-data/test_multi_inputs_values.sparse.npz",
-    "train_cite_inputs": "/arc/project/st-jiaruid-1/yinian/multiome/sparse-data/train_cite_inputs_values.sparse.npz",
-    "train_cite_targets": "/arc/project/st-jiaruid-1/yinian/multiome/sparse-data/train_cite_targets_values.sparse.npz",
-    "test_cite_inputs": "/arc/project/st-jiaruid-1/yinian/multiome/sparse-data/test_cite_inputs_values.sparse.npz",
-}
-
 
 def correlation_score(y_true, y_pred):
     """Scores the predictions according to the competition rules.
@@ -34,12 +25,12 @@ def correlation_score(y_true, y_pred):
 
 
 def preprocessing(config, x, y, x_test):
-    if config["preprocessing_strategy"] == "TruncatedSVD":
+    if config["preprocessing"] == "TruncatedSVD":
         logging.info("Preprocessing Data using TruncatedSVD")
 
         # transform x and x_test
         pca_x = TruncatedSVD(
-            n_components=config["cite_components_rna"], random_state=config["seed"]
+            n_components=config["preprocessing_params"]["input_dim"], random_state=config["seed"]
         )
         x_stacked = scipy.sparse.vstack([x, x_test])
         x_transformed = pca_x.fit_transform(x_stacked)
@@ -52,7 +43,7 @@ def preprocessing(config, x, y, x_test):
 
         # transform y
         pca_y = TruncatedSVD(
-            n_components=config["cite_components_proteins"], random_state=config["seed"]
+            n_components=config["preprocessing_params"]["output_dim"], random_state=config["seed"]
         )
         y_transformed = pca_y.fit_transform(y)
 
@@ -73,7 +64,7 @@ def setup_model(config):
     if config["model"] == "rbf_krr":
         logging.info("Setting up RBF based Kernel Regressor")
         return KernelRidge(
-            alpha=config["alpha"], kernel=RBF(length_scale=config["scale"])
+            alpha=config["model_params"]["alpha"], kernel=RBF(length_scale=config["model_params"]["scale"])
         )
     else:
         raise NotImplementedError

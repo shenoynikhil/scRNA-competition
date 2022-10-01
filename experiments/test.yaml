@@ -12,3 +12,5 @@ model: rbf_krr
 model_params:
   scale: 10
   alpha: 0.1
+prediction_agg: mean
+debug: True
