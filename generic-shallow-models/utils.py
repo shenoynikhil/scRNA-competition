@@ -30,7 +30,8 @@ def preprocessing(config, x, y, x_test):
 
         # transform x and x_test
         pca_x = TruncatedSVD(
-            n_components=config["preprocessing_params"]["input_dim"], random_state=config["seed"]
+            n_components=config["preprocessing_params"]["input_dim"],
+            random_state=config["seed"],
         )
         x_stacked = scipy.sparse.vstack([x, x_test])
         x_transformed = pca_x.fit_transform(x_stacked)
@@ -43,7 +44,8 @@ def preprocessing(config, x, y, x_test):
 
         # transform y
         pca_y = TruncatedSVD(
-            n_components=config["preprocessing_params"]["output_dim"], random_state=config["seed"]
+            n_components=config["preprocessing_params"]["output_dim"],
+            random_state=config["seed"],
         )
         y_transformed = pca_y.fit_transform(y)
 
@@ -62,9 +64,10 @@ def preprocessing(config, x, y, x_test):
 
 def setup_model(config):
     if config["model"] == "rbf_krr":
-        logging.info("Setting up RBF based Kernel Regressor")
+        params = config["model_params"]
+        logging.info(f"Setting up RBF based Kernel Regressor: {params}")
         return KernelRidge(
-            alpha=config["model_params"]["alpha"], kernel=RBF(length_scale=config["model_params"]["scale"])
+            alpha=params["alpha"], kernel=RBF(length_scale=params["scale"])
         )
     else:
         raise NotImplementedError
