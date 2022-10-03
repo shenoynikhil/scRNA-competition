@@ -1,12 +1,11 @@
-output_dir: /scratch/st-jiaruid-1/shenoy/projects/scRNA-competition/output/krr-rbf-exp-multiome-i64-o32
+output_dir: /scratch/st-jiaruid-1/shenoy/projects/scRNA-competition/output/krr-rbf-exp-multiome-i32-o32
 paths:
-  x: /arc/project/st-jiaruid-1/yinian/multiome/sparse-data/train_multi_inputs_values.sparse.npz
+  x: /scratch/st-jiaruid-1/shenoy/svd-comp/train_input_multiome_svd32.pkl
   y: /arc/project/st-jiaruid-1/yinian/multiome/sparse-data/train_multi_targets_values.sparse.npz
-  x_test: /arc/project/st-jiaruid-1/yinian/multiome/sparse-data/test_multi_inputs_values.sparse.npz
+  x_test: /scratch/st-jiaruid-1/shenoy/svd-comp/test_input_multiome_svd32.pkl
 seed: 42
 preprocessing: TruncatedSVD
 preprocessing_params:
-  input_dim: 64
   output_dim: 32
 model: rbf_krr
 model_params:

@@ -1,4 +1,5 @@
-output_dir: /scratch/st-jiaruid-1/shenoy/projects/scRNA-competition/output/trial
+output_dir: /scratch/st-jiaruid-1/shenoy/projects/scRNA-competition/output/svd-cite
+type: cite
 paths:
   x: /arc/project/st-jiaruid-1/yinian/multiome/sparse-data/train_cite_inputs_values.sparse.npz
   y: /arc/project/st-jiaruid-1/yinian/multiome/sparse-data/train_cite_targets_values.sparse.npz
@@ -6,10 +7,5 @@ paths:
 seed: 42
 preprocessing: TruncatedSVD
 preprocessing_params:
-  output_dim: 1
-model: rbf_krr
-model_params:
-  scale: 10
-  alpha: 0.1
-prediction_agg: mean
-debug: True
+  input_dim: 128
+  output_dim: 64

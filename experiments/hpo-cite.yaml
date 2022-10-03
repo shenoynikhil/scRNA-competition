@@ -1,4 +1,4 @@
-output_dir: /scratch/st-jiaruid-1/shenoy/projects/scRNA-competition/output/krr-rbf-exp
+output_dir: /scratch/st-jiaruid-1/shenoy/projects/scRNA-competition/output/krr-rbf-exp-cite-hpo
 paths:
   x: /arc/project/st-jiaruid-1/yinian/multiome/sparse-data/train_cite_inputs_values.sparse.npz
   y: /arc/project/st-jiaruid-1/yinian/multiome/sparse-data/train_cite_targets_values.sparse.npz
@@ -6,10 +6,25 @@ paths:
 seed: 42
 preprocessing: TruncatedSVD
 preprocessing_params:
-  input_dim: 64
   output_dim: 64
 model: rbf_krr
 model_params:
   scale: 10
   alpha: 0.1
 prediction_agg: mean
+save_test_predictions: True
+save_models: True
+hpo:
+  trials: 3
+  params:
+    model_params:
+      alpha:
+        type: float
+        low: 0.01
+        high: 10.0
+        step: 0.01
+      scale:
+        type: float
+        low: 0.01
+        high: 10.0
+        step: 0.01

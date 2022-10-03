@@ -1,0 +1,11 @@
+output_dir: /scratch/st-jiaruid-1/shenoy/projects/scRNA-competition/output/svd-multiome
+type: multiome
+paths:
+  x: /arc/project/st-jiaruid-1/yinian/multiome/sparse-data/train_multi_inputs_values.sparse.npz
+  y: /arc/project/st-jiaruid-1/yinian/multiome/sparse-data/train_multi_targets_values.sparse.npz
+  x_test: /arc/project/st-jiaruid-1/yinian/multiome/sparse-data/test_multi_inputs_values.sparse.npz
+seed: 42
+preprocessing: TruncatedSVD
+preprocessing_params:
+  input_dim: 32
+  output_dim: 32

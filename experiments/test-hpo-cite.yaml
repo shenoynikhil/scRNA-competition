@@ -6,7 +6,6 @@ paths:
 seed: 42
 preprocessing: TruncatedSVD
 preprocessing_params:
-  input_dim: 10
   output_dim: 1
 model: rbf_krr
 model_params:
@@ -22,6 +21,11 @@ hpo:
   params:
     model_params:
       alpha:
+        type: float
+        low: 0.01
+        high: 10.0
+        step: 0.01
+      scale:
         type: float
         low: 0.01
         high: 10.0
