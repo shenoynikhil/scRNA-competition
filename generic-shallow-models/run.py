@@ -13,8 +13,9 @@ from pathlib import Path
 import numpy as np
 import scipy
 import yaml
+from sklearn.decomposition import TruncatedSVD
 from sklearn.model_selection import KFold
-from utils import correlation_score, preprocessing, setup_model
+from utils import correlation_score, setup_model
 
 
 def main(config):
@@ -23,21 +24,23 @@ def main(config):
 
     # Load Data
     logging.info("Loading data")
-    x = scipy.sparse.load_npz(config["paths"]["x"])
+    x_train_transformed = pickle.load(open(config["paths"]["x"], "rb"))
+    x_test_transformed = pickle.load(open(config["paths"]["x_test"], "rb"))
+
+    # load y as it is, since we need the original values to get metrics
     y = scipy.sparse.load_npz(config["paths"]["y"])
-    x_test = scipy.sparse.load_npz(config["paths"]["x_test"])
 
     # perform preprocessing
-    logging.info("Performing Preprocessing")
-    (
-        _,
-        pca_y,
-        x_train_transformed,
-        y_transformed,
-        y,
-        x_test_transformed,
-    ) = preprocessing(config, x, y, x_test)
-    del x, x_test
+    logging.info("Performing Preprocessing on y")
+    if config["preprocessing"] == "TruncatedSVD":
+        # transform y
+        pca_y = TruncatedSVD(
+            n_components=config["preprocessing_params"]["output_dim"],
+            random_state=config["seed"],
+        )
+        y_transformed = pca_y.fit_transform(y)
+    else:
+        raise NotImplementedError
     gc.collect()
 
     # perform KFold cross validation
@@ -81,7 +84,7 @@ def main(config):
 
         # save models if save_models=True
         if save_models:
-            if trial:
+            if trial is not None:
                 pkl_filename = join(
                     config["output_dir"], f"trial_{trial}", f"model_{i}th_fold.pkl"
                 )
@@ -119,13 +122,13 @@ def main(config):
 
     # save numpy array
     if config.get("save_test_predictions", True):
-        logging.info("Saving Predictions")
-        if trial:
+        if trial is not None:
             pkl_filename = join(
                 config["output_dir"], f"trial_{trial}", f"test_pred.pkl"
             )
         else:
             pkl_filename = join(config["output_dir"], f"test_pred.pkl")
+        logging.info(f"Saving Predictions to {pkl_filename}")
         makedirs(dirname(pkl_filename), exist_ok=True)
         with open(pkl_filename, "wb") as file:
             pickle.dump(prediction, file)
