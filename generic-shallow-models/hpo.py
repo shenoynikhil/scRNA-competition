@@ -67,6 +67,8 @@ if __name__ == "__main__":
         study_name=config["hpo"].get("study_name", "HPO"), direction="maximize"
     )
     study.optimize(
-        lambda trial: objective(trial, config), n_trials=config["hpo"]["trials"]
+        lambda trial: objective(trial, config), 
+        n_trials=config["hpo"]["trials"],
+        n_jobs=2
     )
     logging.info(f"Best results: {study.best_trial}")

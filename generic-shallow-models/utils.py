@@ -4,6 +4,8 @@ import numpy as np
 from sklearn.gaussian_process.kernels import RBF
 from sklearn.kernel_ridge import KernelRidge
 
+from catboost import CatBoostRegressor, metrics
+
 
 def correlation_score(y_true, y_pred):
     """Scores the predictions according to the competition rules.
@@ -28,6 +30,14 @@ def setup_model(config):
         logging.info(f"Setting up RBF based Kernel Regressor: {params}")
         return KernelRidge(
             alpha=params["alpha"], kernel=RBF(length_scale=params["scale"])
+        )
+    elif config["model"] == "catboost":
+        params = config["model_params"]
+        logging.info(f"Setting up CatBoostRegressor: {params}")
+        return CatBoostRegressor(
+            iterations=params['iterations'],
+            loss_function=metrics.MultiRMSE(), 
+            random_seed=config['seed']
         )
     else:
         raise NotImplementedError
