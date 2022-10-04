@@ -72,13 +72,8 @@ def main(config):
         )
         x_val, y_val = x_train_transformed[val_indices, :], y[val_indices, :].toarray()
 
-        # perform garbage collection
-        gc.collect()
-
         # fit and then delete training splits
         logging.info(f"Fitting the model for {i}th Fold")
-        if config.get("debug", False):
-            x_train, y_train = x_train[:10], y_train[:10]
         model.fit(x_train, y_train)
         del x_train, y_train
 
@@ -94,8 +89,6 @@ def main(config):
                 pickle.dump(model, file)
 
         logging.info("Predicting and calculating metrics")
-        if config.get("debug", False):
-            x_val, y_val = x_val[:10], y_val[:10]
         scores.append(
             correlation_score(y_val, model.predict(x_val) @ pca_y.components_)
         )
@@ -104,9 +97,9 @@ def main(config):
         gc.collect()
 
         # Perform test predictions with cross val model
-        if config.get("debug", False):
-            x_test_transformed = x_test_transformed[:10]
         predictions.append(model.predict(x_test_transformed) @ pca_y.components_)
+        if i == 1:
+            break
 
     # Again garbage collection to reduce unnecessary memory usage
     gc.collect()
@@ -151,12 +144,15 @@ if __name__ == "__main__":
     config["output_dir"] = join(
         config["output_dir"], datetime.now().strftime("%d_%m_%Y-%H_%M")
     )
-    makedirs(config["output_dir"], exist_ok=True)
+    makedirs(config["output_dir"])
     logging.basicConfig(
         filename=join(config["output_dir"], config.get("log_dir", "output.log")),
         filemode="a",
         level=logging.INFO,
     )
+
+    # log the config
+    logging.info(f'Configuration: {config}')
 
     # run main with config inputted
     main(config)
