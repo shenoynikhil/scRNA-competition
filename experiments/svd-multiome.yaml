@@ -7,5 +7,5 @@ paths:
 seed: 42
 preprocessing: TruncatedSVD
 preprocessing_params:
-  input_dim: 32
+  input_dim: 128
   output_dim: 32
