@@ -37,10 +37,10 @@ def main(config):
     # load y as it is, since we need the original values to get metrics
     # y = scipy.sparse.load_npz(config["paths"]["y"])
 
-    adatas = load_data_as_anndata(config['paths'], config['metadata'])
-    x_train_transformed = adatas['x']
-    x_test_transformed = adatas['x_test']
-    y = adatas['y']
+    adatas = load_data_as_anndata(config["paths"], config["metadata"])
+    x_train_transformed = adatas["x"]
+    x_test_transformed = adatas["x_test"]
+    y = adatas["y"]
 
     # Setup model
     logging.info("Setting up the model")
@@ -49,7 +49,9 @@ def main(config):
     # perform preprocessing
     logging.info("Performing Preprocessing on x, y")
     if config["preprocessing"] == "Custom":
-        x_train_transformed, x_test_transformed, y_transformed = model.preprocess(x_train_transformed, x_test_transformed, y)
+        x_train_transformed, x_test_transformed, y_transformed = model.preprocess(
+            x_train_transformed, x_test_transformed, y
+        )
     elif config["preprocessing"] == "TruncatedSVD":
         # transform y
         pca_y = TruncatedSVD(
@@ -89,7 +91,7 @@ def main(config):
         # initialize an instance of the model
         net = model.initialize()
         if cuda:
-            net.to('cuda')
+            net.to("cuda")
         net.train()
 
         # fit and then delete training splits
@@ -111,9 +113,7 @@ def main(config):
 
         logging.info("Predicting and calculating metrics")
         net.eval()
-        scores.append(
-            correlation_score(y_val, net(x_val))
-        )
+        scores.append(correlation_score(y_val, net(x_val)))
 
         del x_val, y_val
         gc.collect()
@@ -174,7 +174,7 @@ if __name__ == "__main__":
     )
 
     # log the config
-    logging.info(f'Configuration: {config}')
+    logging.info(f"Configuration: {config}")
 
     # run main with config inputted
     main(config)
