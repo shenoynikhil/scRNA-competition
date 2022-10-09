@@ -102,8 +102,11 @@ def main(config):
 
         # Perform test predictions with cross val model
         predictions.append(model.predict(x_test_transformed) @ pca_y.components_)
+        
+        # ---------- TODO: DELETE THE NEXT TWO LINES LATER ----------
         if i == 1:
             break
+        # ---------- TODO: DELETE THE ABOVE TWO LINES LATER ----------
 
     # Again garbage collection to reduce unnecessary memory usage
     gc.collect()
