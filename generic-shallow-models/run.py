@@ -102,7 +102,7 @@ def main(config):
         predictions.append(model.predict(x_test_transformed) @ pca_y.components_)
 
         # ---------- TODO: DELETE THE NEXT TWO LINES LATER ----------
-        if i == 1:
+        if i == config.get('folds', 0):
             break
         # ---------- TODO: DELETE THE ABOVE TWO LINES LATER ----------
 
