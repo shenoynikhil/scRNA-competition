@@ -50,9 +50,7 @@ def main(config):
     np.random.shuffle(all_row_indices)
 
     kf = KFold(
-        n_splits=config.get('folds', 5), 
-        shuffle=True, 
-        random_state=config["seed"]
+        n_splits=config.get("folds", 5), shuffle=True, random_state=config["seed"]
     )
 
     # Setup model
@@ -102,7 +100,7 @@ def main(config):
 
         # Perform test predictions with cross val model
         predictions.append(model.predict(x_test_transformed) @ pca_y.components_)
-        
+
         # ---------- TODO: DELETE THE NEXT TWO LINES LATER ----------
         if i == 1:
             break
@@ -159,7 +157,7 @@ if __name__ == "__main__":
     )
 
     # log the config
-    logging.info(f'Configuration: {config}')
+    logging.info(f"Configuration: {config}")
 
     # run main with config inputted
     main(config)
