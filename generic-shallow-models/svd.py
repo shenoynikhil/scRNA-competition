@@ -12,7 +12,8 @@ from pathlib import Path
 
 import yaml
 from scipy.sparse import load_npz
-from utils import preprocessing
+import scipy
+from sklearn.decomposition import TruncatedSVD
 
 SAVE_DIR = "/scratch/st-jiaruid-1/shenoy/svd-comp"
 
@@ -21,19 +22,19 @@ def main(config):
     # Load Data
     logging.info("Loading data")
     x = load_npz(config["paths"]["x"])
-    y = load_npz(config["paths"]["y"])
     x_test = load_npz(config["paths"]["x_test"])
 
     # perform preprocessing
-    logging.info("Performing Preprocessing")
-    (
-        _,
-        _,
-        x_train_transformed,
-        _,
-        _,
-        x_test_transformed,
-    ) = preprocessing(config, x, y, x_test)
+    # transform x and x_test
+    pca_x = TruncatedSVD(
+        n_components=config["preprocessing_params"]["input_dim"],
+        random_state=config["seed"],
+    )
+    x_stacked = scipy.sparse.vstack([x, x_test])
+    x_transformed = pca_x.fit_transform(x_stacked)
+
+    x_train_transformed = x_transformed[: x.shape[0], :]
+    x_test_transformed = x_transformed[x.shape[0] :, :]    
     del x, x_test
     gc.collect()
 
