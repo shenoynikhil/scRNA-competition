@@ -49,7 +49,11 @@ def main(config):
     all_row_indices = np.arange(x_train_transformed.shape[0])
     np.random.shuffle(all_row_indices)
 
-    kf = KFold(n_splits=5, shuffle=True, random_state=config["seed"])
+    kf = KFold(
+        n_splits=config.get('folds', 5), 
+        shuffle=True, 
+        random_state=config["seed"]
+    )
 
     # Setup model
     logging.info("Setting up the model")
