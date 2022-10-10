@@ -1,11 +1,14 @@
 import logging
 
 import numpy as np
+import torch.optim as optim
 from catboost import CatBoostRegressor, metrics
 from lightgbm import LGBMRegressor
+from pytorch_tabnet.tab_model import TabNetRegressor
 from sklearn.gaussian_process.kernels import RBF
 from sklearn.kernel_ridge import KernelRidge
 from sklearn.multioutput import MultiOutputRegressor
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from xgboost import XGBRegressor
 
 
@@ -47,29 +50,37 @@ def setup_model(config):
         return MultiOutputRegressor(
             XGBRegressor(
                 n_estimators=params.get("n_estimators", 100),
-                objective=squared_log,
-                random_state=config["seed"],
-            )
-        )
-    elif config["model"] == "lgb":
-        params = config["model_params"]
-        logging.info(f"Setting up LightGBMRegressor: {params}")
-        return MultiOutputRegressor(
-            LGBMRegressor(
-                n_estimators=params.get("n_estimators", 100),
-                reg_alpha=0.03645857751758206,
-                reg_lambda=0.0025972855120393492,
-                colsample_bytree=1.0,
-                subsample=0.6,
-                learning_rate=0.013262872399411381,
-                max_depth=10,
-                num_leaves=186,
-                min_child_samples=263,
-                min_data_per_groups=46,
                 objective="mae",
                 random_state=config["seed"],
             )
         )
+    elif config["model"] == "lgb":
+        params = config.get("model_params", {})
+        logging.info(f"Setting up LightGBMRegressor: {params}")
+        return MultiOutputRegressor(
+            LGBMRegressor(
+                n_estimators=params.get("n_estimators", 100),
+                objective="mae",
+                random_state=config["seed"],
+            )
+        )
+    elif config["model"] == "tabnet":
+        params = config.get("model_params", {})
+        tabnet_params = dict(
+            n_d=16,
+            n_a=16,
+            n_steps=8,
+            gamma=1.3,
+            lambda_sparse=0,
+            optimizer_fn=optim.Adam,
+            optimizer_params=dict(lr=2e-2, weight_decay=1e-5),
+            mask_type="entmax",
+            scheduler_params=dict(mode="min", patience=5, min_lr=1e-5, factor=0.9),
+            scheduler_fn=ReduceLROnPlateau,
+            seed=config["seed"],
+            verbose=1,
+        )
+        return TabNetRegressor(**tabnet_params)
     else:
         raise NotImplementedError
 
@@ -89,3 +100,49 @@ def squared_log(predt, dtrain):
     grad = gradient(predt, dtrain)
     hess = hessian(predt, dtrain)
     return grad, hess
+
+
+def get_hypopt_space(model_type: str, trial, seed: int = 42):
+    """Returns parameters for model for conducting hyperoptimization
+
+    Currently supports one of ['lgbm']
+
+    Parameters
+    ----------
+    model_type: str
+        Type of model
+    trial:
+        <insert>
+    seed: int
+        Random seed to be set
+
+    Returns
+    -------
+    params: dict
+        dictionary of parameters, could be passed to model as
+        `model(**params)`
+    """
+    if model_type == "lgbm":
+        return {
+            "verbosity": 1,  # 0 (silent) - 3 (debug)
+            "objective": "reg:squarederror",
+            "n_estimators": trial.suggest_int("n_estimators", 100, 1000, 50),
+            "max_depth": trial.suggest_int("max_depth", 4, 12),
+            "learning_rate": trial.suggest_float(
+                "learning_rate", 0.005, 0.05, log=True
+            ),
+            "colsample_bytree": trial.suggest_float(
+                "colsample_bytree", 0.2, 0.6, log=True
+            ),
+            "subsample": trial.suggest_float("subsample", 0.4, 0.8, log=True),
+            "alpha": trial.suggest_float("alpha", 0.01, 10.0, log=True),
+            "lambda": trial.suggest_float("lambda", 1e-8, 10.0, log=True),
+            "gamma": trial.suggest_float("lambda", 1e-8, 10.0, log=True),
+            "min_child_weight": trial.suggest_float(
+                "min_child_weight", 10, 1000, log=True
+            ),
+            "seed": seed,
+            "n_jobs": 1,
+        }
+    else:
+        raise NotImplementedError
