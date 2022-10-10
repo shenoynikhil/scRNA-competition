@@ -137,7 +137,7 @@ class ShallowModelKFold(ExperimentHelper):
         return score
 
     def _fit_model(self, model, x_train, y_train, x_val=None, y_val=None):
-        """"""
+        """Fit the model correctly"""
         if self.config["model"] == "tabnet":
             assert (x_val is not None) and (
                 y_val is not None
@@ -158,7 +158,12 @@ class ShallowModelKFold(ExperimentHelper):
 
         return model
 
-    def conduct_hpo(self, n: int = 5000):
+    def conduct_hpo(
+        self,
+        subset_size: int = 5000,
+        n_trials: int = 10,
+        train_subset_frac: float = 0.8,
+    ):
         """Conducts HPO if supported
 
         Only call, experiment.conduct_hpo()
@@ -172,10 +177,11 @@ class ShallowModelKFold(ExperimentHelper):
         gc.collect()
 
         # reduce to size
+        logging.info("Reducing size")
         x_train_transformed, y, y_transformed = (
-            x_train_transformed[:n, :],
-            y[:n, :],
-            y_transformed[:n, :],
+            x_train_transformed[:subset_size, :],
+            y[:subset_size, :],
+            y_transformed[:subset_size, :],
         )
 
         def objective(
@@ -188,24 +194,25 @@ class ShallowModelKFold(ExperimentHelper):
             # get hyperopt parameters
             params = get_hypopt_space(self.config["model"], trial, self.seed)
 
-            train_len = int(0.8 * x.shape[0])  # let's do random for now
-            x_train, y_train, x_val, y_val, y_val_orig = (
+            train_len = int(train_subset_frac * x.shape[0])  # let's do random for now
+            x_train, y_train, x_val, y_val_orig = (
                 x[:train_len, :],
                 y[:train_len, :],
                 x[train_len:, :],
-                y[train_len:, :],
                 y_orig[train_len:, :],
             )
+            gc.collect()
 
             model = MultiOutputRegressor(LGBMRegressor(**params))
-
-            model.fit(x_train, y_train, eval_set=[(x_val, y_val)], verbose=1)
+            model.fit(x_train, y_train)
 
             return correlation_score(
                 y_val_orig, model.predict(x_val) @ pca_y.components_
             )
 
-        study = optuna.create_study(study_name="test-hpo-run", direction="maximize")
+        # run hyperopt
+        logging.info("Running hyperopt")
+        study = optuna.create_study(study_name="hpo-run", direction="maximize")
         study.optimize(
             lambda trial: objective(
                 trial,
@@ -213,7 +220,9 @@ class ShallowModelKFold(ExperimentHelper):
                 y_transformed,
                 y.toarray(),
                 pca_y,
-                random_state=self.seed,
             ),
-            n_trials=2,
+            n_trials=n_trials,
         )
+
+        # logging best results
+        logging.info(f"Best results: {study.best_trial}")

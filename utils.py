@@ -125,7 +125,7 @@ def get_hypopt_space(model_type: str, trial, seed: int = 42):
     if model_type == "lgbm":
         return {
             "verbosity": 1,  # 0 (silent) - 3 (debug)
-            "objective": "reg:squarederror",
+            "objective": "rmse",
             "n_estimators": trial.suggest_int("n_estimators", 100, 1000, 50),
             "max_depth": trial.suggest_int("max_depth", 4, 12),
             "learning_rate": trial.suggest_float(
@@ -136,8 +136,7 @@ def get_hypopt_space(model_type: str, trial, seed: int = 42):
             ),
             "subsample": trial.suggest_float("subsample", 0.4, 0.8, log=True),
             "alpha": trial.suggest_float("alpha", 0.01, 10.0, log=True),
-            "lambda": trial.suggest_float("lambda", 1e-8, 10.0, log=True),
-            "gamma": trial.suggest_float("lambda", 1e-8, 10.0, log=True),
+            "lambda_l2": trial.suggest_float("lambda_l2", 1e-8, 10.0, log=True),
             "min_child_weight": trial.suggest_float(
                 "min_child_weight", 10, 1000, log=True
             ),
