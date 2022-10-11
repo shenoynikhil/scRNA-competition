@@ -12,6 +12,7 @@ from pathlib import Path
 import yaml
 
 from shallowKFold import ShallowModelKFold
+from basicNN import BasicNN
 
 
 def main(config):
@@ -21,6 +22,9 @@ def main(config):
     # run main with config inputted
     if config["experiment"] == "ShallowModelKFold":
         experiment = ShallowModelKFold(config)
+        experiment.run_experiment()
+    if config["experiment"] == "BasicNeuralNetwork":
+        experiment = BasicNN(config)
         experiment.run_experiment()
     else:
         raise NotImplementedError
