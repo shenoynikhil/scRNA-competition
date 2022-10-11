@@ -110,7 +110,7 @@ def load_data_as_anndata(filepaths, metadata_path):
 
         technology = metadata_df.loc[cell_ids, "technology"].unique().item()
 
-        if technology == "multiome":
+        if technology == "multiome" or technology == "citeseq":
             sparse_chunks = []
             n_cells = h5_data["block0_values"].shape[0]
 
@@ -120,8 +120,8 @@ def load_data_as_anndata(filepaths, metadata_path):
                 sparse_chunks.append(sparse_chunk)
 
             X = scipy.sparse.vstack(sparse_chunks)
-        elif technology == "citeseq":
-            X = h5_data["block0_values"][:]
+        # elif technology == "citeseq":
+        #     X = h5_data["block0_values"][:]
 
         adata = ad.AnnData(
             X=X,
@@ -381,8 +381,9 @@ class BasicNN(ExperimentHelper):
         x = torch.Tensor(x)
         y = torch.Tensor(y)
         dataset = TensorDataset(x, y)
+        train_num = int(len(dataset) * 6/7)
         train_dataset, val_dataset = torch.utils.data.random_split(
-            dataset, [90807, 15135], generator=torch.Generator().manual_seed(self.config['seed'])
+            dataset, [train_num, len(dataset) - train_num], generator=torch.Generator().manual_seed(self.config['seed'])
         )
         training_loader = DataLoader(train_dataset, batch_size=1000)
         validation_loader = DataLoader(val_dataset, batch_size=1000)
@@ -402,9 +403,9 @@ class BasicNN(ExperimentHelper):
         if self.config.get("save_test_predictions", True):
             pkl_filename = join(self.config["output_dir"], f"test_pred.pkl")
             logging.info(f"Saving Predictions to {pkl_filename}")
-            makedirs(dirname(pkl_filename), exist_ok=True)
+            # makedirs(dirname(pkl_filename), exist_ok=True)
             with open(pkl_filename, "wb") as file:
-                pickle.dump(prediction, file)
+                pickle.dump(y, file)
 
     def _load_and_predict(self, x_test):
         model = self.setup_model()
