@@ -50,14 +50,8 @@ class ShallowModelKFold(ExperimentHelper):
             n_splits=self.config.get("folds", 5), shuffle=True, random_state=self.seed
         )
 
-        # Save the model (do not save when config['save_models'] == False)
-        save_models = self.config.get("save_models", True)
-
-        # for cross val scores
-        scores = []
-
         # for x_test predictions
-        predictions = []
+        scores, predictions = [], []
         for i, (tr_indices, val_indices) in enumerate(kf.split(all_row_indices)):
             # preparing ith fold, for y_val we will use (not)transformed vector to calculate scores
             logging.info(f"{i}th fold")
@@ -73,7 +67,7 @@ class ShallowModelKFold(ExperimentHelper):
             del x_train, y_train
 
             # save models if save_models=True
-            if save_models:
+            if self.save_models:
                 pkl_filename = join(self.config["output_dir"], f"model_{i}th_fold.pkl")
                 with open(pkl_filename, "wb") as file:
                     pickle.dump(model, file)
@@ -97,25 +91,7 @@ class ShallowModelKFold(ExperimentHelper):
         # Again garbage collection to reduce unnecessary memory usage
         gc.collect()
 
-        logging.info(f"Scores on 5-fold CV: {scores}")
-
-        # post processing final predictions before pickle saving them
-        if self.config.get("prediction_agg", "") == "mean":
-            # mean over cross val predictions
-            prediction = np.mean(predictions, axis=0)
-        else:
-            raise NotImplementedError
-
-        # save numpy array
-        if self.config.get("save_test_predictions", True):
-            pkl_filename = join(self.config["output_dir"], f"test_pred.pkl")
-            logging.info(f"Saving Predictions to {pkl_filename}")
-            makedirs(dirname(pkl_filename), exist_ok=True)
-            with open(pkl_filename, "wb") as file:
-                pickle.dump(prediction, file)
-
-        # return CV score
-        return np.mean(scores)
+        return self._post_processing_scores_and_predictions(predictions, scores)
 
     def run_experiment(self):
         # get data
@@ -149,10 +125,9 @@ class ShallowModelKFold(ExperimentHelper):
             model.fit(
                 x_train,
                 y_train,
-                eval_set=[(x_train, y_train), (x_val, y_val)],
-                eval_name=["train", "valid"],
+                eval_set=[(x_val, y_val)],
                 eval_metric=[PCC],
-                max_epochs=50,
+                max_epochs=100,
                 patience=50,
                 batch_size=1024,
                 virtual_batch_size=128,
@@ -161,6 +136,28 @@ class ShallowModelKFold(ExperimentHelper):
             model.fit(x_train, y_train)
 
         return model
+    
+    def _post_processing_scores_and_predictions(self, predictions, scores):
+        # log all scores
+        logging.info(f"Scores on CV: {scores}")
+
+        # post processing final predictions before pickle saving them
+        if self.config.get("prediction_agg", "") == "mean":
+            # mean over cross val predictions
+            prediction = np.mean(predictions, axis=0)
+        else:
+            raise NotImplementedError
+
+        # save numpy array
+        if self.config.get("save_test_predictions", True):
+            pkl_filename = join(self.config["output_dir"], f"test_pred.pkl")
+            logging.info(f"Saving Predictions to {pkl_filename}")
+            makedirs(dirname(pkl_filename), exist_ok=True)
+            with open(pkl_filename, "wb") as file:
+                pickle.dump(prediction, file)
+
+        # return CV score
+        return np.mean(scores)       
 
     def conduct_hpo(
         self,

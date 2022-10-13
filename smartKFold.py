@@ -20,23 +20,17 @@ class SmartKFold(ShallowModelKFold):
         self.cv_path = self.config["paths"].get("cv_file", None)
         if self.cv_path is None:
             raise FileNotFoundError(f"cv_file not found at {self.cv_path}")
+    
+        logging.info(f"Setting up cross validation from file: {self.cv_path}")
+        with open(self.cv_path, "rb") as f:
+            self.cv_splits = pickle.load(f)
 
         return x_train_transformed, x_test_transformed, y
 
     def fit_model(self, x, y, y_orig, x_test, model, pca_y):
-        logging.info(f"Setting up cross validation from file: {self.cv_path}")
-        with open(self.cv_path, "rb") as f:
-            cv_splits = pickle.load(f)
-
-        # Save the model (do not save when config['save_models'] == False)
-        save_models = self.config.get("save_models", True)
-
-        # for cross val scores
-        scores = []
-
         # for x_test predictions
-        predictions = []
-        for i, (cv_split, split_dict) in enumerate(cv_splits.items()):
+        scores, predictions = [], []
+        for i, (cv_split, split_dict) in enumerate(self.cv_splits.items()):
             # train ids and val ids to be used --> convert to set
             train_ids_set = set(split_dict["train"])
             val_ids_set = set(split_dict["val"])
@@ -61,15 +55,14 @@ class SmartKFold(ShallowModelKFold):
             del x_train, y_train
 
             # save models if save_models=True
-            if save_models:
+            if self.save_models:
                 pkl_filename = join(self.config["output_dir"], f"model_{i}th_fold.pkl")
                 with open(pkl_filename, "wb") as file:
                     pickle.dump(model, file)
 
-            logging.info("Predicting and calculating metrics")
-            scores.append(
-                correlation_score(y_val, model.predict(x_val) @ pca_y.components_)
-            )
+            score = correlation_score(y_val, model.predict(x_val) @ pca_y.components_)
+            logging.info(f"Score for this val set: {score}")
+            scores.append(score)
 
             del x_val, y_val
             gc.collect()
@@ -77,30 +70,7 @@ class SmartKFold(ShallowModelKFold):
             # Perform test predictions with cross val model
             predictions.append(model.predict(x_test) @ pca_y.components_)
 
-            # ---------- TODO: DELETE THE NEXT TWO LINES LATER ----------
-            if i == self.config.get("folds", 4):
-                break
-            # ---------- TODO: DELETE THE ABOVE TWO LINES LATER ----------
-
         # Again garbage collection to reduce unnecessary memory usage
         gc.collect()
 
-        logging.info(f"Scores on 5-fold CV: {scores}")
-
-        # post processing final predictions before pickle saving them
-        if self.config.get("prediction_agg", "") == "mean":
-            # mean over cross val predictions
-            prediction = np.mean(predictions, axis=0)
-        else:
-            raise NotImplementedError
-
-        # save numpy array
-        if self.config.get("save_test_predictions", True):
-            pkl_filename = join(self.config["output_dir"], f"test_pred.pkl")
-            logging.info(f"Saving Predictions to {pkl_filename}")
-            makedirs(dirname(pkl_filename), exist_ok=True)
-            with open(pkl_filename, "wb") as file:
-                pickle.dump(prediction, file)
-
-        # return CV score
-        return np.mean(scores)
+        return self._post_processing_scores_and_predictions(predictions, scores)
