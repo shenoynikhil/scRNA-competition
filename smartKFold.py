@@ -17,7 +17,7 @@ class SmartKFold(ShallowModelKFold):
         self.x_indices = np.load(self.config["paths"]["x_indices"], allow_pickle=True)[
             "index"
         ].tolist()
-        self.cv_path = self.config.get("cv_file", None)
+        self.cv_path = self.config["paths"].get("cv_file", None)
         if self.cv_path is None:
             raise FileNotFoundError(f"cv_file not found at {self.cv_path}")
 
@@ -43,10 +43,10 @@ class SmartKFold(ShallowModelKFold):
 
             # get indices
             tr_indices, val_indices = (
-                len([i for i, x in enumerate(self.x_indices) if x in train_ids_set]),
-                len([i for i, x in enumerate(self.x_indices) if x in val_ids_set]),
+                [i for i, x in enumerate(self.x_indices) if x in train_ids_set],
+                [i for i, x in enumerate(self.x_indices) if x in val_ids_set],
             )
-
+            
             # preparing ith fold, for y_val we will use (not)transformed vector to calculate scores
             logging.info(f"{cv_split}th fold")
             x_train, y_train = (

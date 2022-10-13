@@ -13,7 +13,7 @@ from sklearn.model_selection import KFold
 from sklearn.multioutput import MultiOutputRegressor
 
 from base import ExperimentHelper
-from utils import correlation_score, get_hypopt_space
+from utils import correlation_score, get_hypopt_space, PCC
 
 
 class ShallowModelKFold(ExperimentHelper):
@@ -151,7 +151,7 @@ class ShallowModelKFold(ExperimentHelper):
                 y_train,
                 eval_set=[(x_train, y_train), (x_val, y_val)],
                 eval_name=["train", "valid"],
-                eval_metric=["mae", "rmse", "mse"],
+                eval_metric=[PCC],
                 max_epochs=50,
                 patience=50,
                 batch_size=1024,
