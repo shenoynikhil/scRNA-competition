@@ -13,6 +13,7 @@ import yaml
 
 from basicNN import BasicNN
 from shallowKFold import ShallowModelKFold
+from smartKFold import SmartKFold
 
 
 def main(config):
@@ -23,7 +24,10 @@ def main(config):
     if config["experiment"] == "ShallowModelKFold":
         experiment = ShallowModelKFold(config)
         experiment.run_experiment()
-    if config["experiment"] == "BasicNeuralNetwork":
+    elif config["experiment"] == "SmartKFold":
+        experiment = SmartKFold(config)
+        experiment.run_experiment()
+    elif config["experiment"] == "BasicNeuralNetwork":
         experiment = BasicNN(config)
         experiment.run_experiment()
     else:
