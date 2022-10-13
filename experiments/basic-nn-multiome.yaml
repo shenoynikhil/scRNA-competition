@@ -1,0 +1,21 @@
+experiment: BasicNeuralNetwork
+load: True
+load_path: /scratch/st-jiaruid-1/yinian/my_jupyter/output/10_10_2022-11_51/BasicNN_epoch33
+output_dir: /scratch/st-jiaruid-1/yinian/my_jupyter/output/
+paths:
+  x: /arc/project/st-jiaruid-1/yinian/multiome/train_multi_inputs.h5
+  y: /arc/project/st-jiaruid-1/yinian/multiome/train_multi_targets.h5
+  x_test: /arc/project/st-jiaruid-1/yinian/multiome/test_multi_inputs.h5
+metadata: /arc/project/st-jiaruid-1/yinian/multiome/metadata.csv
+technology: multiome
+seed: 42
+preprocess_params:
+  stack: 1
+model_params:
+  layers:
+    - 320
+    - 360
+    - 620
+    - 440
+  dropout: 0.8
+  epochs: 35
