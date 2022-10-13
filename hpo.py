@@ -34,7 +34,7 @@ if __name__ == "__main__":
 
     # Setup output directory
     config["output_dir"] = join(
-        config["output_dir"], datetime.now().strftime("%d_%m_%Y-%H_%M")
+        config["output_dir"], 'hpo', datetime.now().strftime("%d_%m_%Y-%H_%M")
     )
     makedirs(config["output_dir"])
     logging.basicConfig(
