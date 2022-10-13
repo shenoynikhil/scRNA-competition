@@ -213,7 +213,7 @@ class ShallowModelKFold(ExperimentHelper):
             score = correlation_score(
                 y_val_orig, model.predict(x_val) @ pca_y.components_
             )
-            logging.info(f'Score for trial: {trial} is, {score}')
+            logging.info(f"Score for trial: {trial} is, {score}")
             return score
 
         # run hyperopt

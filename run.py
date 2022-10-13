@@ -11,8 +11,8 @@ from pathlib import Path
 
 import yaml
 
-from shallowKFold import ShallowModelKFold
 from basicNN import BasicNN
+from shallowKFold import ShallowModelKFold
 
 
 def main(config):

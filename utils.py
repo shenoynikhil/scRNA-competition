@@ -10,6 +10,7 @@ from sklearn.kernel_ridge import KernelRidge
 from sklearn.multioutput import MultiOutputRegressor
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from xgboost import XGBRegressor
+from pytorch_tabnet.metrics import Metric
 
 
 def correlation_score(y_true, y_pred):
@@ -122,7 +123,7 @@ def get_hypopt_space(model_type: str, trial, seed: int = 42):
         dictionary of parameters, could be passed to model as
         `model(**params)`
     """
-    if model_type == "lgbm":
+    if model_type == "lgb":
         return {
             "verbosity": 1,  # 0 (silent) - 3 (debug)
             "objective": "rmse",
@@ -145,3 +146,12 @@ def get_hypopt_space(model_type: str, trial, seed: int = 42):
         }
     else:
         raise NotImplementedError
+
+
+class PCC(Metric):
+    def __init__(self):
+        self._name = "pcc"
+        self._maximize = True
+
+    def __call__(self, y_true, y_score):
+        return np.corrcoef(y_true, y_score)[1, 0]
