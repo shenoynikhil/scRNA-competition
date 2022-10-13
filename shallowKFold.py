@@ -32,7 +32,11 @@ class ShallowModelKFold(ExperimentHelper):
             n_components=self.config["preprocessing_params"]["output_dim"],
             random_state=self.seed,
         )
+
         y_transformed = pca_y.fit_transform(y)
+        filename = join(self.config["output_dir"], f"pca_y.pkl")
+        with open(filename, "wb") as file:
+            pickle.dump(pca_y, file)
         return y_transformed, y, pca_y
 
     def fit_model(self, x, y, y_orig, x_test, model, pca_y):
@@ -86,8 +90,8 @@ class ShallowModelKFold(ExperimentHelper):
             predictions.append(model.predict(x_test) @ pca_y.components_)
 
             # ---------- TODO: DELETE THE NEXT TWO LINES LATER ----------
-            # if i == self.config.get("folds", 0):
-            #     break
+            if i == self.config.get("folds", 4):
+                break
             # ---------- TODO: DELETE THE ABOVE TWO LINES LATER ----------
 
         # Again garbage collection to reduce unnecessary memory usage
@@ -206,9 +210,11 @@ class ShallowModelKFold(ExperimentHelper):
             model = MultiOutputRegressor(LGBMRegressor(**params))
             model.fit(x_train, y_train)
 
-            return correlation_score(
+            score = correlation_score(
                 y_val_orig, model.predict(x_val) @ pca_y.components_
             )
+            logging.info(f'Score for trial: {trial} is, {score}')
+            return score
 
         # run hyperopt
         logging.info("Running hyperopt")
@@ -222,6 +228,7 @@ class ShallowModelKFold(ExperimentHelper):
                 pca_y,
             ),
             n_trials=n_trials,
+            n_jobs=-1,
         )
 
         # logging best results
