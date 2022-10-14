@@ -1,8 +1,7 @@
 import gc
 import logging
 import pickle
-from os import makedirs
-from os.path import dirname, join
+from os.path import join
 
 import numpy as np
 
