@@ -4,3 +4,4 @@ open-problems-multimodal.zip
 .ipynb_checkpoints
 __pycache__
 output/
+.vscode
