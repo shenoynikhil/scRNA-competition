@@ -15,6 +15,9 @@ class ExperimentHelper:
         # get important stuff
         self.seed = self.config["seed"]
 
+        # save models check
+        self.save_models = self.config.get("save_models", True)        
+
     def check_config(self):
         """Add checks you think are important here"""
         assert "seed" in self.config, "Ensure seed present in config"
