@@ -62,6 +62,13 @@ def setup_model(config):
             LGBMRegressor(
                 n_estimators=params.get("n_estimators", 100),
                 objective="mae",
+                max_depth=params.get("max_depth", 8),
+                learning_rate=params.get("learning_rate", 0.024),
+                colsample_bytree=params.get("colsample_bytree", 0.564),
+                subsample=params.get("subsample", 0.41),
+                alpha=params.get("alpha", 1.136),
+                lambda_l2=params.get("lambda_l2", 1.926e-05),
+                min_child_weight=params.get("min_child_weight", 10.43),
                 random_state=config["seed"],
             )
         )
@@ -72,10 +79,8 @@ def setup_model(config):
             n_a=16,
             n_steps=8,
             gamma=1.3,
-            lambda_sparse=0,
             optimizer_fn=optim.Adam,
             optimizer_params=dict(lr=2e-2, weight_decay=1e-5),
-            mask_type="entmax",
             scheduler_params=dict(mode="min", patience=5, min_lr=1e-5, factor=0.9),
             scheduler_fn=ReduceLROnPlateau,
             seed=config["seed"],
@@ -84,6 +89,13 @@ def setup_model(config):
         return TabNetRegressor(**tabnet_params)
     else:
         raise NotImplementedError
+
+def pcc_lightgbm(dy_true, dy_pred):
+    """An eval metric that always returns the same value"""
+    metric_name = 'pcc'
+    value = correlation_score(dy_true, dy_pred)
+    is_higher_better = True
+    return metric_name, value, is_higher_better
 
 
 def gradient(predt: np.ndarray, dtrain) -> np.ndarray:
@@ -154,4 +166,4 @@ class PCC(Metric):
         self._maximize = True
 
     def __call__(self, y_true, y_score):
-        return np.corrcoef(y_true, y_score)[1, 0]
+        return correlation_score(y_true, y_score)
