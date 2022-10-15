@@ -1,4 +1,4 @@
-output_dir: /scratch/st-jiaruid-1/shenoy/projects/scRNA-competition/output/tabnet-multiome-i128-o300
+output_dir: /scratch/st-jiaruid-1/shenoy/projects/scRNA-competition/output/tabnet-multiome-imp-kfold
 experiment: SmartKFold
 paths:
   x: /scratch/st-jiaruid-1/shenoy/svd-comp/train_input_multiome_svd128.pkl
