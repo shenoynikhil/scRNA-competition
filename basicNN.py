@@ -30,6 +30,9 @@ from utils import correlation_score
 cuda = torch.cuda.is_available()
 
 
+important_cols = ['ENSG00000114013_CD86', 'ENSG00000120217_CD274', 'ENSG00000196776_CD47', 'ENSG00000117091_CD48', 'ENSG00000101017_CD40', 'ENSG00000102245_CD40LG', 'ENSG00000169442_CD52', 'ENSG00000117528_ABCD3', 'ENSG00000168014_C2CD3', 'ENSG00000167851_CD300A', 'ENSG00000167850_CD300C', 'ENSG00000186407_CD300E', 'ENSG00000178789_CD300LB', 'ENSG00000186074_CD300LF', 'ENSG00000241399_CD302', 'ENSG00000167775_CD320', 'ENSG00000105383_CD33', 'ENSG00000174059_CD34', 'ENSG00000135218_CD36', 'ENSG00000104894_CD37', 'ENSG00000004468_CD38', 'ENSG00000167286_CD3D', 'ENSG00000198851_CD3E', 'ENSG00000117877_CD3EAP', 'ENSG00000074696_HACD3', 'ENSG00000015676_NUDCD3', 'ENSG00000161714_PLCD3', 'ENSG00000132300_PTCD3', 'ENSG00000082014_SMARCD3', 'ENSG00000121594_CD80', 'ENSG00000110651_CD81', 'ENSG00000238184_CD81-AS1', 'ENSG00000085117_CD82', 'ENSG00000112149_CD83', 'ENSG00000066294_CD84', 'ENSG00000114013_CD86', 'ENSG00000172116_CD8B', 'ENSG00000254126_CD8B2', 'ENSG00000177455_CD19', 'ENSG00000105383_CD33', 'ENSG00000173762_CD7', 'ENSG00000125726_CD70', 'ENSG00000137101_CD72', 'ENSG00000019582_CD74', 'ENSG00000105369_CD79A', 'ENSG00000007312_CD79B', 'ENSG00000090470_PDCD7', 'ENSG00000119688_ABCD4', 'ENSG00000010610_CD4', 'ENSG00000101017_CD40', 'ENSG00000102245_CD40LG', 'ENSG00000026508_CD44', 'ENSG00000117335_CD46', 'ENSG00000196776_CD47', 'ENSG00000117091_CD48', 'ENSG00000188921_HACD4', 'ENSG00000150593_PDCD4', 'ENSG00000203497_PDCD4-AS1', 'ENSG00000115556_PLCD4', 'ENSG00000026508_CD44', 'ENSG00000170458_CD14', 'ENSG00000117281_CD160', 'ENSG00000177575_CD163', 'ENSG00000135535_CD164', 'ENSG00000091972_CD200', 'ENSG00000163606_CD200R1', 'ENSG00000206531_CD200R1L', 'ENSG00000182685_BRICD5', 'ENSG00000111731_C2CD5', 'ENSG00000169442_CD52', 'ENSG00000143119_CD53', 'ENSG00000196352_CD55', 'ENSG00000116815_CD58', 'ENSG00000085063_CD59', 'ENSG00000105185_PDCD5', 'ENSG00000255909_PDCD5P1', 'ENSG00000145284_SCD5', 'ENSG00000167775_CD320', 'ENSG00000110848_CD69', 'ENSG00000139187_KLRG1', 'ENSG00000139193_CD27', 'ENSG00000215039_CD27-AS1', 'ENSG00000120217_CD274', 'ENSG00000103855_CD276', 'ENSG00000204287_HLA-DRA', 'ENSG00000196126_HLA-DRB1', 'ENSG00000198502_HLA-DRB5', 'ENSG00000229391_HLA-DRB6', 'ENSG00000116815_CD58', 'ENSG00000168329_CX3CR1', 'ENSG00000272398_CD24', 'ENSG00000122223_CD244', 'ENSG00000198821_CD247', 'ENSG00000122223_CD244', 'ENSG00000177575_CD163', 'ENSG00000112149_CD83', 'ENSG00000185963_BICD2', 'ENSG00000157617_C2CD2', 'ENSG00000172375_C2CD2L', 'ENSG00000116824_CD2', 'ENSG00000091972_CD200', 'ENSG00000163606_CD200R1', 'ENSG00000206531_CD200R1L', 'ENSG00000012124_CD22', 'ENSG00000150637_CD226', 'ENSG00000272398_CD24', 'ENSG00000122223_CD244', 'ENSG00000198821_CD247', 'ENSG00000139193_CD27', 'ENSG00000215039_CD27-AS1', 'ENSG00000120217_CD274', 'ENSG00000103855_CD276', 'ENSG00000198087_CD2AP', 'ENSG00000169217_CD2BP2', 'ENSG00000144554_FANCD2', 'ENSG00000206527_HACD2', 'ENSG00000170584_NUDCD2', 'ENSG00000071994_PDCD2', 'ENSG00000126249_PDCD2L', 'ENSG00000049883_PTCD2', 'ENSG00000186193_SAPCD2', 'ENSG00000108604_SMARCD2', 'ENSG00000185561_TLCD2', 'ENSG00000075035_WSCD2', 'ENSG00000150637_CD226', 'ENSG00000110651_CD81', 'ENSG00000238184_CD81-AS1', 'ENSG00000134061_CD180', 'ENSG00000004468_CD38', 'ENSG00000012124_CD22', 'ENSG00000150637_CD226', 'ENSG00000135404_CD63', 'ENSG00000135218_CD36', 'ENSG00000137101_CD72', 'ENSG00000125810_CD93', 'ENSG00000010278_CD9', 'ENSG00000125810_CD93', 'ENSG00000153283_CD96', 'ENSG00000002586_CD99', 'ENSG00000102181_CD99L2', 'ENSG00000223773_CD99P1', 'ENSG00000204592_HLA-E', 'ENSG00000085117_CD82', 'ENSG00000134256_CD101']
+important_cols = set(important_cols)
+
 def atac_de_analysis(adata, top_genes):
     """get top DA peaks per cell type"""
     adata.X = binarize(adata.X)
@@ -181,7 +184,7 @@ class BasicNN(ExperimentHelper):
         else:
             genes1 = gex_de_analysis(x_train.copy(), self.config['model_params']['top_genes'])
             genes1.to_csv(join(self.config["output_dir"], "DEGs.csv"))
-            selected_genes = set(genes1.names).union(y.var_names)
+            selected_genes = set(genes1.names).union(y.var_names).union(important_cols)
 
         self.min_val = np.min(y.X)
         self.max_val = np.max(y.X)
@@ -227,6 +230,7 @@ class BasicNN(ExperimentHelper):
         x_train_final = x_train.X.toarray()
         train_batch_median = x_train.obs["batch_median"]
         train_batch_sd = x_train.obs["batch_sd"]
+        train_batch_days = x_train.obs["day"]
         del x_train
         gc.collect()
 
@@ -241,10 +245,14 @@ class BasicNN(ExperimentHelper):
         for i in range(stack):
             x_train_final = np.column_stack((x_train_final, train_batch_sd))
             gc.collect()
+        for i in range(stack * 3):
+            x_train_final = np.column_stack((x_train_final, train_batch_days))
+            gc.collect()
 
         x_test_final = x_test.X.toarray()
         test_batch_median = x_test.obs["batch_median"]
         test_batch_sd = x_test.obs["batch_sd"]
+        test_batch_days = x_test.obs["day"]
 
         del x_test
         gc.collect()
@@ -258,7 +266,10 @@ class BasicNN(ExperimentHelper):
         for i in range(stack):
             x_test_final = np.column_stack((x_test_final, test_batch_sd))
             gc.collect()
-        
+        for i in range(stack * 3):
+            x_test_final = np.column_stack((x_test_final, test_batch_days))
+            gc.collect()
+
         y_final = y.X.toarray()
         del y
 
@@ -268,6 +279,7 @@ class BasicNN(ExperimentHelper):
         means = means.reshape(len(means), 1)
         sds = sds.reshape(len(sds), 1)
         info = {"means": means, "sds": sds}
+        logging.info(f"{means.shape}, {sds.shape}, {x_train_final.shape}, {x_test_final.shape}")
 
         logging.info("Dumping means and sds")
         with open(join(self.config["output_dir"], "./transformation.pkl"), "wb") as out:
