@@ -30,7 +30,7 @@ from utils import correlation_score
 cuda = torch.cuda.is_available()
 
 
-def atac_de_analysis(adata):
+def atac_de_analysis(adata, top_genes):
     """get top DA peaks per cell type"""
     adata.X = binarize(adata.X)
     sc.tl.rank_genes_groups(adata, "cell_type", method="t-test")
@@ -47,12 +47,12 @@ def atac_de_analysis(adata):
     for cell_type in cell_types:
         dedf = sc.get.rank_genes_groups_df(adata, group=cell_type)
         dedf["cell_type"] = cell_type
-        dedf = dedf.sort_values("scores", ascending=False).iloc[:100]
+        dedf = dedf.sort_values("scores", ascending=False).iloc[:top_genes]
         df = df.append(dedf, ignore_index=True)
     return df
 
 
-def gex_de_analysis(adata_GEX):
+def gex_de_analysis(adata_GEX, top_genes):
     """get top DE genes per cell type (multiome)"""
     sc.pp.filter_cells(adata_GEX, min_genes=200)
     sc.pp.filter_genes(adata_GEX, min_cells=3)
@@ -79,7 +79,7 @@ def gex_de_analysis(adata_GEX):
     for cell_type in cell_types:
         dedf = sc.get.rank_genes_groups_df(adata_GEX, group=cell_type)
         dedf["cell_type"] = cell_type
-        dedf = dedf.sort_values("scores", ascending=False).iloc[:100]
+        dedf = dedf.sort_values("scores", ascending=False).iloc[:top_genes]
         df = df.append(dedf, ignore_index=True)
     return df
 
@@ -110,18 +110,15 @@ def load_data_as_anndata(filepaths, metadata_path):
 
         technology = metadata_df.loc[cell_ids, "technology"].unique().item()
 
-        if technology == "multiome" or technology == "citeseq":
-            sparse_chunks = []
-            n_cells = h5_data["block0_values"].shape[0]
+        sparse_chunks = []
+        n_cells = h5_data["block0_values"].shape[0]
 
-            for chunk_indices in np.array_split(np.arange(n_cells), 100):
-                chunk = h5_data["block0_values"][chunk_indices]
-                sparse_chunk = scipy.sparse.csr_matrix(chunk)
-                sparse_chunks.append(sparse_chunk)
+        for chunk_indices in np.array_split(np.arange(n_cells), 100):
+            chunk = h5_data["block0_values"][chunk_indices]
+            sparse_chunk = scipy.sparse.csr_matrix(chunk)
+            sparse_chunks.append(sparse_chunk)
 
-            X = scipy.sparse.vstack(sparse_chunks)
-        # elif technology == "citeseq":
-        #     X = h5_data["block0_values"][:]
+        X = scipy.sparse.vstack(sparse_chunks)
 
         adata = ad.AnnData(
             X=X,
@@ -178,11 +175,11 @@ class BasicNN(ExperimentHelper):
         logging.info("Preprocessing data")
 
         if self.config['technology'] == "multiome":
-            genes = atac_de_analysis(x_train.copy())
+            genes = atac_de_analysis(x_train.copy(), self.config['model_params']['top_genes'])
             genes.to_csv(join(self.config["output_dir"], "DEGs.csv"))
             selected_genes = set(genes.names)
         else:
-            genes1 = gex_de_analysis(x_train.copy())
+            genes1 = gex_de_analysis(x_train.copy(), self.config['model_params']['top_genes'])
             genes1.to_csv(join(self.config["output_dir"], "DEGs.csv"))
             selected_genes = set(genes1.names).union(y.var_names)
 
@@ -350,6 +347,7 @@ class BasicNN(ExperimentHelper):
             model.train(False)
 
             running_vloss = 0.0
+            running_vcorr = 0.0
             for i, vdata in enumerate(validation_loader):
                 vinputs, vlabels = vdata
                 if cuda:
@@ -357,12 +355,16 @@ class BasicNN(ExperimentHelper):
                     vlabels = vlabels.to("cuda")
                 voutputs = model(vinputs)
                 vloss = loss_fn(voutputs, vlabels)
+                vcorr = correlation_score(voutputs.cpu().detach().numpy(), vlabels.cpu().detach().numpy())
                 running_vloss += vloss
+                running_vcorr += vcorr
                 del vinputs, vlabels
                 gc.collect()
 
             avg_vloss = running_vloss / (i + 1)
+            avg_vcorr = running_vcorr / (i + 1)
             logging.info("LOSS train {} valid {}".format(avg_loss, avg_vloss))
+            logging.info("CORR validation {}". format(avg_vcorr))
 
             # Track best performance, and save the model's state
             if save_models and avg_vloss < best_vloss:
@@ -371,6 +373,7 @@ class BasicNN(ExperimentHelper):
                     self.config["output_dir"],
                     "{}_epoch{}".format("BasicNN", epoch_number),
                 )
+                self.best_model_path = model_path
                 torch.save(model.state_dict(), model_path)
 
             epoch_number += 1
@@ -389,30 +392,12 @@ class BasicNN(ExperimentHelper):
         validation_loader = DataLoader(val_dataset, batch_size=1000)
         self._train_all_epochs(model, training_loader, validation_loader)
 
-    def predict(self, x_test, model):
-        logging.info("Predicting for test data")
-        model.eval()
-        x_test = torch.Tensor(x_test)
-        if cuda:
-            x_test = x_test.to('cuda')
-        y_test = model(x_test)
-        if cuda:
-            y = y_test.cpu().detach().numpy()
-        else:
-            y = y_test.detach().numpy()
-        if self.config.get("save_test_predictions", True):
-            pkl_filename = join(self.config["output_dir"], f"test_pred.pkl")
-            logging.info(f"Saving Predictions to {pkl_filename}")
-            # makedirs(dirname(pkl_filename), exist_ok=True)
-            with open(pkl_filename, "wb") as file:
-                pickle.dump(y, file)
-
-    def _load_and_predict(self, x_test):
+    def _load_and_predict(self, x_test, load_path):
         model = self.setup_model()
         if not cuda:
-            model.load_state_dict(torch.load(self.config['load_path']), map_location=torch.device('cpu'))
+            model.load_state_dict(load_path, map_location=torch.device('cpu'))
         else:
-            model.load_state_dict(torch.load(self.config['load_path']))
+            model.load_state_dict(load_path)
         model.eval()
         x_test = torch.Tensor(x_test)
         if cuda:
@@ -429,6 +414,9 @@ class BasicNN(ExperimentHelper):
             with open(pkl_filename, "wb") as file:
                 pickle.dump(y, file)
 
+    def predict(self, x_test):
+        logging.info("Predicting for test data")
+        self._load_and_predict(x_test, torch.load(self.best_model_path))
     
     def run_experiment(self):
         x, x_test, y = self.read_data()
@@ -439,9 +427,9 @@ class BasicNN(ExperimentHelper):
             logging.info("Setting up and training new model")
             model = self.setup_model()
             self.fit_model(x_train_final, y_final , model)
-            self.predict(x_test_final, model)
+            self.predict(x_test_final)
         else:
             logging.info(f"Loading model from { self.config['load_path']}")
-            self._load_and_predict(x_test_final)
+            self._load_and_predict(x_test_final, torch.load(self.config['load_path']))
         logging.info("Completed")
 
