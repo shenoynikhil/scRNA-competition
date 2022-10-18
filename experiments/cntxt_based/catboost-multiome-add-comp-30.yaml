@@ -1,0 +1,14 @@
+output_dir: /scratch/st-jiaruid-1/shenoy/projects/scRNA-competition/output/cntxt_based/catboost-multiome-addn-comp-30
+experiment: ShallowModelKFold
+paths:
+  x: /scratch/st-jiaruid-1/shenoy/svd-comp/train_input_multiome_128_ctxt_addn_comp_30.pkl
+  y: /arc/project/st-jiaruid-1/yinian/multiome/sparse-data/train_multi_targets_values.sparse.npz
+  x_test: /scratch/st-jiaruid-1/shenoy/svd-comp/test_input_multiome_128_ctxt_addn_comp_30.pkl
+seed: 42
+preprocessing: TruncatedSVD
+preprocessing_params:
+  output_dim: 100
+model: catboost
+model_params:
+  iterations: 500
+prediction_agg: mean
