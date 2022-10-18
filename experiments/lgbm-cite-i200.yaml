@@ -1,4 +1,4 @@
-output_dir: /scratch/st-jiaruid-1/shenoy/projects/scRNA-competition/output/lgbm-cite-i200-o100
+output_dir: /scratch/st-jiaruid-1/shenoy/projects/scRNA-competition/output/lgbm-cite-i200
 experiment: ShallowModelKFold
 paths:
   x: /scratch/st-jiaruid-1/shenoy/svd-comp/train_input_cite_200_mod.pkl
