@@ -132,20 +132,15 @@ class ShallowModelKFold(ExperimentHelper):
                     for i in range(len(y_true)):
                         corrsum += np.corrcoef(y_true[i], y_score[i])[1, 0]        
                     return corrsum / y_true.shape[0]
-
-
-            assert (x_val is not None) and (
-                y_val is not None
-            ), "one/both of x_val and y_val is/are None"
+            
+            # perform training
             model.fit(
                 x_train,
                 y_train,
                 eval_set=[(x_val, y_val)],
                 eval_metric=[PCC],
-                max_epochs=100,
-                patience=10,
-                batch_size=1024,
-                virtual_batch_size=128,
+                max_epochs=300,
+                patience=20,
             )
         elif self.config["model"] == "catboost":
             model.fit(
