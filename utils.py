@@ -75,19 +75,11 @@ def setup_model(config, **kwargs):
         )
     elif config["model"] == "tabnet":
         params = config.get("model_params", {})
-        tabnet_params = dict(
-            n_d=16,
-            n_a=16,
-            n_steps=8,
-            gamma=1.3,
-            optimizer_fn=optim.Adam,
-            optimizer_params=dict(lr=2e-2, weight_decay=1e-5),
-            scheduler_params=dict(mode="min", patience=5, min_lr=1e-5, factor=0.9),
-            scheduler_fn=ReduceLROnPlateau,
+        return TabNetRegressor(
             seed=config["seed"],
+            device_name=config.get('device_name', 'cpu'),
             verbose=1,
         )
-        return TabNetRegressor(**tabnet_params)
     else:
         raise NotImplementedError
 
