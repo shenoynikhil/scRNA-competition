@@ -2,7 +2,7 @@ import logging
 
 import numpy as np
 import torch.optim as optim
-from catboost import CatBoostRegressor, metrics
+from catboost import CatBoostRegressor, metrics, MultiTargetCustomMetric
 from lightgbm import LGBMRegressor
 from pytorch_tabnet.tab_model import TabNetRegressor
 from sklearn.gaussian_process.kernels import RBF
@@ -10,7 +10,6 @@ from sklearn.kernel_ridge import KernelRidge
 from sklearn.multioutput import MultiOutputRegressor
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from xgboost import XGBRegressor
-from pytorch_tabnet.metrics import Metric
 
 
 def correlation_score(y_true, y_pred):
@@ -30,7 +29,7 @@ def correlation_score(y_true, y_pred):
     return corrsum / len(y_true)
 
 
-def setup_model(config):
+def setup_model(config, **kwargs):
     if config["model"] == "rbf_krr":
         params = config["model_params"]
         logging.info(f"Setting up RBF based Kernel Regressor: {params}")
@@ -43,7 +42,9 @@ def setup_model(config):
         return CatBoostRegressor(
             iterations=params["iterations"],
             loss_function=metrics.MultiRMSE(),
+            task_type=params.get("task_type", 'CPU'),
             random_seed=config["seed"],
+            eval_metric=PCCCatBoostMetric(pca=kwargs.get('pca'))
         )
     elif config["model"] == "xgboost":
         params = config["model_params"]
@@ -74,19 +75,11 @@ def setup_model(config):
         )
     elif config["model"] == "tabnet":
         params = config.get("model_params", {})
-        tabnet_params = dict(
-            n_d=16,
-            n_a=16,
-            n_steps=8,
-            gamma=1.3,
-            optimizer_fn=optim.Adam,
-            optimizer_params=dict(lr=2e-2, weight_decay=1e-5),
-            scheduler_params=dict(mode="min", patience=5, min_lr=1e-5, factor=0.9),
-            scheduler_fn=ReduceLROnPlateau,
+        return TabNetRegressor(
             seed=config["seed"],
+            device_name=config.get('device_name', 'cpu'),
             verbose=1,
         )
-        return TabNetRegressor(**tabnet_params)
     else:
         raise NotImplementedError
 
@@ -160,10 +153,33 @@ def get_hypopt_space(model_type: str, trial, seed: int = 42):
         raise NotImplementedError
 
 
-class PCC(Metric):
-    def __init__(self):
-        self._name = "pcc"
-        self._maximize = True
+class PCCCatBoostMetric(MultiTargetCustomMetric):
+    def __init__(self, pca):
+        self.pca = pca
 
-    def __call__(self, y_true, y_score):
-        return correlation_score(y_true, y_score)
+    def is_max_optimal(self):
+        # Returns whether great values of metric are better
+        return True
+
+    def evaluate(self, approxes, target, weight):
+        # approxes is a list of indexed containers
+        # (containers with only __len__ and __getitem__ defined),
+        # one container per approx dimension.
+        # Each container contains floats.
+        # weight is a one dimensional indexed container.
+        # target is a one dimensional indexed container.
+
+        # weight parameter can be None.
+        # Returns pair (error, weights sum)
+        y_true, y_pred = (
+            np.stack(target, 1) @ self.pca.components_, 
+            np.stack(approxes, 1) @ self.pca.components_
+        )
+        corrsum = 0
+        for i in range(len(y_true)):
+            corrsum += np.corrcoef(y_true[i], y_pred[i])[1, 0]
+        return corrsum, y_true.shape[0]
+
+    def get_final_error(self, error, weight):
+        # Returns final value of metric based on error and weight
+        return error / weight

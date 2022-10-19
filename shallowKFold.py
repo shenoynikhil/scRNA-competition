@@ -8,12 +8,13 @@ import numpy as np
 import optuna
 import scipy
 from lightgbm import LGBMRegressor
+from pytorch_tabnet.metrics import Metric
 from sklearn.decomposition import TruncatedSVD
 from sklearn.model_selection import KFold
 from sklearn.multioutput import MultiOutputRegressor
 
 from base import ExperimentHelper
-from utils import correlation_score, get_hypopt_space, PCC
+from utils import correlation_score, get_hypopt_space
 
 
 class ShallowModelKFold(ExperimentHelper):
@@ -63,7 +64,7 @@ class ShallowModelKFold(ExperimentHelper):
 
             # fit and then delete training splits
             logging.info(f"Fitting the model for {i}th Fold")
-            model = self._fit_model(model, x_train, y_train, x_val, y[val_indices, :])
+            model = self._fit_model(model, x_train, y_train, x_val, y[val_indices, :], pca_y)
             del x_train, y_train
 
             # save models if save_models=True
@@ -102,7 +103,8 @@ class ShallowModelKFold(ExperimentHelper):
         gc.collect()
 
         # get model
-        model = self.setup_model()
+        kwargs = {'pca': pca_y}
+        model = self.setup_model(**kwargs)
 
         # run experiment
         score = self.fit_model(
@@ -116,21 +118,36 @@ class ShallowModelKFold(ExperimentHelper):
 
         return score
 
-    def _fit_model(self, model, x_train, y_train, x_val=None, y_val=None):
+    def _fit_model(self, model, x_train, y_train, x_val=None, y_val=None, pca_y=None):
         """Fit the model correctly"""
         if self.config["model"] == "tabnet":
-            assert (x_val is not None) and (
-                y_val is not None
-            ), "one/both of x_val and y_val is/are None"
+            class PCC(Metric):
+                def __init__(self):
+                    self._name = "pcc"
+                    self._maximize = True
+
+                def __call__(self, y_true, y_score):
+                    y_true, y_score = y_true @ pca_y.components_, y_score @ pca_y.components_
+                    corrsum = 0
+                    for i in range(len(y_true)):
+                        corrsum += np.corrcoef(y_true[i], y_score[i])[1, 0]        
+                    return corrsum / y_true.shape[0]
+            
+            # perform training
             model.fit(
                 x_train,
                 y_train,
                 eval_set=[(x_val, y_val)],
                 eval_metric=[PCC],
-                max_epochs=100,
-                patience=50,
-                batch_size=1024,
-                virtual_batch_size=128,
+                max_epochs=300,
+                patience=20,
+            )
+        elif self.config["model"] == "catboost":
+            model.fit(
+                x_train, y_train, 
+                eval_set=[(x_val, y_val)], 
+                verbose=True, 
+                early_stopping_rounds=10
             )
         else:
             model.fit(x_train, y_train)

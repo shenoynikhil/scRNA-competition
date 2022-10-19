@@ -50,7 +50,7 @@ class SmartKFold(ShallowModelKFold):
 
             # fit and then delete training splits
             logging.info(f"Fitting the model for {i}th Fold")
-            model = self._fit_model(model, x_train, y_train, x_val, y[val_indices, :])
+            model = self._fit_model(model, x_train, y_train, x_val, y[val_indices, :], pca_y)
             del x_train, y_train
 
             # save models if save_models=True
