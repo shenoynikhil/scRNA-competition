@@ -33,9 +33,9 @@ class ExperimentHelper:
         """Perform preprocessing"""
         pass
 
-    def setup_model(self):
+    def setup_model(self, **kwargs):
         """Setup model"""
-        return setup_model(self.config)
+        return setup_model(self.config, **kwargs)
 
     @abstractmethod
     def fit_model(self, x, y, model):
