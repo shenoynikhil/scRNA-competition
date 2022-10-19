@@ -10,7 +10,8 @@ metadata: /arc/project/st-jiaruid-1/yinian/multiome/metadata.csv
 technology: cite
 seed: 42
 preprocess_params:
-  stack: 1
+  stack: 10
+  top_genes: 250
 model_params:
   layers:
     - 170
@@ -19,4 +20,5 @@ model_params:
     - 330
     - 770
   dropout: 0.2
-  epochs: 35
+  epochs: 50
+
