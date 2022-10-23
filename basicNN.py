@@ -178,11 +178,11 @@ class BasicNN(ExperimentHelper):
         logging.info("Preprocessing data")
 
         if self.config['technology'] == "multiome":
-            genes = atac_de_analysis(x_train.copy(), self.config['model_params']['top_genes'])
+            genes = atac_de_analysis(x_train.copy(), self.config['preprocess_params']['top_genes'])
             genes.to_csv(join(self.config["output_dir"], "DEGs.csv"))
             selected_genes = set(genes.names)
         else:
-            genes1 = gex_de_analysis(x_train.copy(), self.config['model_params']['top_genes'])
+            genes1 = gex_de_analysis(x_train.copy(), self.config['preprocess_params']['top_genes'])
             genes1.to_csv(join(self.config["output_dir"], "DEGs.csv"))
             selected_genes = set(genes1.names).union(y.var_names).union(important_cols)
 
