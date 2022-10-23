@@ -7,11 +7,9 @@ from os.path import dirname, join
 import numpy as np
 import optuna
 import scipy
-from lightgbm import LGBMRegressor
 from pytorch_tabnet.metrics import Metric
 from sklearn.decomposition import TruncatedSVD
 from sklearn.model_selection import KFold
-from sklearn.multioutput import MultiOutputRegressor
 
 from base import ExperimentHelper
 from utils import correlation_score, get_hypopt_space
@@ -209,20 +207,21 @@ class ShallowModelKFold(ExperimentHelper):
             y_orig,
             pca_y,
         ):
-            # get hyperopt parameters
-            params = get_hypopt_space(self.config["model"], trial, self.seed)
+            # get hyperopt parameters and set it to model_params, will be used to set model
+            self.config["model_params"] = get_hypopt_space(self.config["model"], trial, self.seed)
 
             train_len = int(train_subset_frac * x.shape[0])  # let's do random for now
-            x_train, y_train, x_val, y_val_orig = (
+            x_train, y_train, x_val, y_val, y_val_orig = (
                 x[:train_len, :],
                 y[:train_len, :],
                 x[train_len:, :],
+                y[train_len:, :],
                 y_orig[train_len:, :],
             )
             gc.collect()
 
-            model = MultiOutputRegressor(LGBMRegressor(**params))
-            model.fit(x_train, y_train)
+            model = self.setup_model()
+            model = self._fit_model(model, x_train, y_train, x_val, y_val, pca_y)
 
             score = correlation_score(
                 y_val_orig, model.predict(x_val) @ pca_y.components_

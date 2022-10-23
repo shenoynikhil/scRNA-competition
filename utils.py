@@ -76,8 +76,19 @@ def setup_model(config, **kwargs):
     elif config["model"] == "tabnet":
         params = config.get("model_params", {})
         return TabNetRegressor(
-            seed=config["seed"],
+            n_d=config.get('n_d', 16),
+            n_a=config.get('n_a', 16),
+            n_steps=config.get('n_steps', 3),
+            lambda_sparse = config.get('lambda_sparse', 0),
+            mask_type = config.get('mask_type', "entmax"),
+            scheduler_params = config.get(
+                'scheduler_params', 
+                dict(
+                    mode = "min", patience = 5, min_lr = 1e-5, factor = 0.9
+                )
+            ),
             device_name=config.get('device_name', 'cpu'),
+            seed=config["seed"],
             verbose=1,
         )
     else:
@@ -148,6 +159,13 @@ def get_hypopt_space(model_type: str, trial, seed: int = 42):
             ),
             "seed": seed,
             "n_jobs": 1,
+        }
+    elif model_type == 'tabnet':
+        x = trial.suggest_categorical('n_x', [4, 8, 16, 24, 32, 40])
+        return {
+            "n_d": x,
+            "n_a": x,
+            "n_steps": trial.suggest_int('n_steps', 3, 10, 1),
         }
     else:
         raise NotImplementedError
