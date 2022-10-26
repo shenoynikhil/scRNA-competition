@@ -9,6 +9,7 @@ import logging
 import anndata as ad
 import pickle
 import numpy as np
+import optuna
 import pandas as pd
 import scanpy as sc
 import scipy
@@ -25,7 +26,7 @@ import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader
 
 from base import ExperimentHelper
-from utils import correlation_score
+from utils import correlation_score, get_hypopt_space
 from basicNN import BasicNN, atac_de_analysis, gex_de_analysis
 
 
@@ -233,3 +234,73 @@ class SmartNN(BasicNN):
         self.output_shape = y_final.shape[1]
 
         return x_train_final, x_test_final, y_final
+
+    def _opt_fit_model(self, x, x_val, y, y_val, model):
+        logging.info("Generating train and validation datasets")
+        np.random.seed(self.config['seed'])
+        x = torch.Tensor(x)
+        y = torch.Tensor(y)
+        x_val = torch.Tensor(x_val)
+        y_val = torch.Tensor(y_val)
+        train_dataset = TensorDataset(x, y)
+        val_dataset = TensorDataset(x_val, y_val)
+        training_loader = DataLoader(train_dataset, batch_size=1000)
+        validation_loader = DataLoader(val_dataset, batch_size=1000)
+        self._train_all_epochs(model, training_loader, validation_loader)
+
+    def conduct_hpo(self, subset_size: int = 5000, n_trials: int = 10, train_subset_frac: float = 0.8):
+        """
+        Conduct hyperparameter optimization?
+        """
+        x_train, x_test, y_train = self.read_data()
+        x_train_final, _, y_final = self.perform_preprocessing(x_train, x_test, y_train)
+        gc.collect()
+
+        # Random shuffle
+        logging.info("Reducing size")
+        p = np.random.permutation(len(x_train_final))
+        x_train_final, y_final = x_train_final[p], y_final[p]
+        x_train_final, y_final = x_train_final[:subset_size, :], y_final[:subset_size, :]
+        gc.collect()
+
+        def objective(trial, x, y):
+            logging.info(str(trial))
+            self.config["model_params"] = get_hypopt_space(self.config["model"], trial, self.seed)
+
+            train_len = int(train_subset_frac * x.shape[0])
+            x_train, y_train, x_val, y_val = (
+                x[:train_len, :],
+                y[:train_len, :],
+                x[train_len:, :],
+                y[train_len:, :]
+            )
+            gc.collect()
+
+            model = self.setup_model()
+            self._opt_fit_model(x, x_val, y, y_val, model)
+
+            model.eval()
+
+            x_val = torch.Tensor(x_val)
+            if cuda:
+                x_val = x_val.to('cuda')
+            pred_y_val = model(x_val)
+            pred_y_val = pred_y_val.cpu().detach().numpy()
+            score = correlation_score(y_val, pred_y_val)
+            logging.info(f"Score for trial: {trial} is, {score}")
+            return score
+        
+        logging.info("Running hyperopt")
+        study = optuna.create_study(study_name="hpo-run", direction="maximize")
+        study.optimize(
+            lambda trial: objective(
+                trial,
+                x_train_final,
+                y_final
+            ),
+            n_trials=n_trials,
+            n_jobs=1,
+        )
+
+        # logging best results
+        logging.info(f"Best results: {study.best_trial}")

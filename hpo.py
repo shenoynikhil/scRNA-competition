@@ -11,12 +11,16 @@ from pathlib import Path
 import yaml
 
 from shallowKFold import ShallowModelKFold
+from smartNN import SmartNN
 
 
 def main(config):
     # run main with config inputted
     if config["experiment"] == "ShallowModelKFold":
         experiment = ShallowModelKFold(config)
+        experiment.conduct_hpo(n_trials=100, subset_size=10000, train_subset_frac=0.8)
+    if config["experiment"] == "SmartNeuralNetwork":
+        experiment = SmartNN(config)
         experiment.conduct_hpo(n_trials=100, subset_size=10000, train_subset_frac=0.8)
     else:
         raise NotImplementedError
