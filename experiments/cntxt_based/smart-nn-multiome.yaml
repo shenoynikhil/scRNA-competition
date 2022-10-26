@@ -1,0 +1,25 @@
+experiment: SmartNeuralNetwork
+load: False
+load_path:
+output_dir: /scratch/st-jiaruid-1/yinian/my_jupyter/output/
+paths:
+  x: /arc/project/st-jiaruid-1/yinian/multiome/train_multi_inputs.h5
+  y: /arc/project/st-jiaruid-1/yinian/multiome/train_multi_targets.h5
+  x_test: /arc/project/st-jiaruid-1/yinian/multiome/test_multi_inputs.h5
+metadata: /arc/project/st-jiaruid-1/yinian/multiome/metadata.csv
+technology: multiome
+seed: 42
+preprocess_params:
+  stack: 50
+  top_genes: 1000
+  context_output_dim: 32
+  context_stack: 3
+model_params:
+  layers:
+    - 320
+    - 360
+    - 620
+    - 440
+  dropout: 0.5
+  epochs: 100
+  

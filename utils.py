@@ -167,6 +167,18 @@ def get_hypopt_space(model_type: str, trial, seed: int = 42):
             "n_a": x,
             "n_steps": trial.suggest_int('n_steps', 3, 10, 1),
         }
+    elif model_type == 'smartNN':
+        num_layers = trial.suggest_int('num_layers', 3, 6)
+        layers = []
+        for i in range(num_layers):
+            n_units = int(trial.suggest_int(f'n_units_{i}', 128, 1029, log=True))
+            layers.append(n_units)
+        dropout = trial.suggest_uniform('dropout', 0.0, 1.0)
+        return {
+            'layers': layers,
+            'dropout': dropout,
+            'epochs': 50
+        }
     else:
         raise NotImplementedError
 
