@@ -134,6 +134,19 @@ def load_data_as_anndata(filepaths, metadata_path):
     return adatas
 
 
+def corrcoeffloss(y_pred, y_true):
+    '''Pearson Correlation Coefficient
+    Implementation in Torch, without shifting to cpu, detach, numpy (consumes time)
+    '''
+    y_true_ = y_true - torch.mean(y_true, 1, keepdim=True)
+    y_pred_ = y_pred - torch.mean(y_pred, 1, keepdim=True)
+
+    num = (y_true_ * y_pred_).sum(1, keepdim=True)
+    den = torch.sqrt(((y_pred_ ** 2).sum(1, keepdim=True)) * ((y_true_ ** 2).sum(1, keepdim=True)))
+
+    return -1 * ((num/den).mean())
+
+
 class Hyperparameters:
     # class to store hyperparameters
     def __init__(self, dropout, layer_shapes):
@@ -326,7 +339,7 @@ class BasicNN(ExperimentHelper):
 
             outputs = model(inputs)
 
-            loss = loss_fn(outputs, labels)
+            loss = corrcoeffloss(outputs, labels)
             loss.backward()
 
             optimizer.step()
@@ -343,7 +356,8 @@ class BasicNN(ExperimentHelper):
     def _train_all_epochs(self, model, training_loader, validation_loader):
         save_models = self.config.get("save_test_predictions", True)
         epoch_number = 0
-        best_vloss = 1_000_000.0
+        # best_vloss = 1_000_000.0
+        best_vcorr = -1.0
 
         loss_fn = nn.MSELoss()
         optimizer = torch.optim.Adam(model.parameters())
@@ -358,7 +372,7 @@ class BasicNN(ExperimentHelper):
             # We don't need gradients on to do reporting
             model.train(False)
 
-            running_vloss = 0.0
+            # running_vloss = 0.0
             running_vcorr = 0.0
             for i, vdata in enumerate(validation_loader):
                 vinputs, vlabels = vdata
@@ -366,21 +380,17 @@ class BasicNN(ExperimentHelper):
                     vinputs = vinputs.to("cuda")
                     vlabels = vlabels.to("cuda")
                 voutputs = model(vinputs)
-                vloss = loss_fn(voutputs, vlabels)
-                vcorr = correlation_score(voutputs.cpu().detach().numpy(), vlabels.cpu().detach().numpy())
-                running_vloss += vloss
+                vcorr = -corrcoeffloss(voutputs, vlabels)
                 running_vcorr += vcorr
                 del vinputs, vlabels
                 gc.collect()
 
-            avg_vloss = running_vloss / (i + 1)
             avg_vcorr = running_vcorr / (i + 1)
-            logging.info("LOSS train {} valid {}".format(avg_loss, avg_vloss))
-            logging.info("CORR validation {}". format(avg_vcorr))
+            logging.info("LOSS train {} valid {}".format(-avg_loss, avg_vcorr))
 
             # Track best performance, and save the model's state
-            if save_models and avg_vloss < best_vloss:
-                best_vloss = avg_vloss
+            if save_models and avg_vcorr > best_vcorr:
+                best_vcorr = avg_vcorr
                 model_path = join(
                     self.config["output_dir"],
                     "{}_epoch{}".format("BasicNN", epoch_number),
