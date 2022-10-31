@@ -1,0 +1,12 @@
+experiment: DNN
+seed: 42
+output_dir: /scratch/st-jiaruid-1/shenoy/projects/scRNA-competition/output/dnn-exps/basenet-cite-dcv-test
+datamodule_config:
+  x: /scratch/st-jiaruid-1/shenoy/svd-comp/train_input_cite_svd128.pkl
+  y: /arc/project/st-jiaruid-1/yinian/multiome/sparse-data/train_cite_targets_values.sparse.npz
+  x_test: /scratch/st-jiaruid-1/shenoy/svd-comp/test_input_cite_svd128.pkl
+  x_indices: /arc/project/st-jiaruid-1/yinian/multiome/sparse-data/train_cite_targets_idxcol.npz
+  cv_file: /arc/project/st-jiaruid-1/yinian/multiome/cv_splits_cite_seed_42_majority_frac_0.7_rest_equiprobable_type2.pkl
+model_config:
+  input_dim: 128
+  output_dim: 100

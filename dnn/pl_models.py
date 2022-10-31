@@ -36,6 +36,9 @@ class BaseNet(pl.LightningModule):
 
         self.setup_net(hp)
         self.loss = self.setup_loss()
+    
+    def setup_pca(self, pca):
+        self.pca = pca
 
     def on_fit_start(self) -> None:
         # store pcc values in each step
@@ -84,7 +87,7 @@ class BaseNet(pl.LightningModule):
     def generic_step(self, batch, batch_idx, split):
         '''Validation step'''
         # x, y
-        x, y = batch
+        x, y, y_orig = batch
 
         # get output of the network
         preds = self.net(x)
@@ -95,13 +98,18 @@ class BaseNet(pl.LightningModule):
         return {
             'loss': loss,
             'preds': preds.detach(),
-            'y': y.detach()
+            'y': y.detach(),
+            'y_orig': y_orig.detach()
         }
 
     def generic_epoch_end(self, outputs: EPOCH_OUTPUT, split: str) -> None:
         '''Compute PCC metric at epoch level and log to progressbar and update storage'''
-        epoch_preds = torch.cat([pred['preds'] for pred in outputs])
-        epoch_y = torch.cat([pred['y'] for pred in outputs])
+        # raise to original dimension
+        if self.pca is not None:
+            epoch_preds = torch.cat([pred['preds'] @ self.pca.components_ for pred in outputs])
+        else:
+            epoch_preds = torch.cat([pred['preds'] for pred in outputs])
+        epoch_y = torch.cat([pred['y_orig'] for pred in outputs])
 
         # compute pcc
         pcc = corrcoeff(epoch_preds, epoch_y)
@@ -122,7 +130,7 @@ class ContextConditioningNet(BaseNet):
         hp: dict = {
             'layers': [170, 300, 480, 330, 770],
             'dropout': 0.2, 
-        }
+        },
     ):
         self.context_dim = context_dim
         self.beta = beta
@@ -159,7 +167,7 @@ class ContextConditioningNet(BaseNet):
     def generic_step(self, batch, batch_idx, split):
         '''Validation step'''
         # x, y
-        x, y = batch
+        x, y, y_orig = batch
 
         x, z = x[:, :-self.context_dim], x[:, -self.context_dim:]
 
@@ -172,5 +180,6 @@ class ContextConditioningNet(BaseNet):
         return {
             'loss': loss,
             'preds': preds.detach(),
-            'y': y.detach()
+            'y': y.detach(),
+            'y_orig': y_orig.detach()
         }

@@ -1,0 +1,14 @@
+experiment: DNN
+seed: 42
+output_dir: /scratch/st-jiaruid-1/shenoy/projects/scRNA-competition/output/dnn-exps/basenet-multiome-dcv
+datamodule_config:
+  x: /arc/project/st-jiaruid-1/yinian/multiome/svd-comp/train_input_multiome_svd128.pkl
+  y: /arc/project/st-jiaruid-1/yinian/multiome/sparse-data/train_multi_targets_values.sparse.npz
+  x_test: /arc/project/st-jiaruid-1/yinian/multiome/svd-comp/test_input_multiome_svd128.pkl
+  x_indices: /arc/project/st-jiaruid-1/yinian/multiome/sparse-data/train_multi_targets_idxcol.npz
+  cv_file: /arc/project/st-jiaruid-1/yinian/multiome/cv_splits_multi_seed_42_majority_frac_0.7_rest_equiprobable_type2.pkl
+  preprocess_y:
+    output_dim: 300
+model_config:
+  input_dim: 128
+  output_dim: 100

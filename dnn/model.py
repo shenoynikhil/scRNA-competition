@@ -1,9 +1,10 @@
+import numpy as np
 import os
 import logging
 import pytorch_lightning as pl
 from .pl_models import BaseNet, ContextConditioningNet
 from .datamodule import DataModule
-from pytorch_lightning.callbacks import TQDMProgressBar, EarlyStopping
+from pytorch_lightning.callbacks import TQDMProgressBar, EarlyStopping, ModelCheckpoint
 
 
 class DNNSetup():
@@ -55,6 +56,7 @@ class DNNSetup():
             'num_sanity_val_steps':trainer_config.get('num_sanity_val_steps', 0),
             'max_epochs':trainer_config.get('max_epochs', 200),
             'callbacks':[
+                ModelCheckpoint(filename='{epoch:02d}', monitor='val/pcc', mode="max"),
                 TQDMProgressBar(refresh_rate=1000),
                 EarlyStopping(monitor="val/pcc", mode="max", patience=20)
             ],
@@ -68,18 +70,22 @@ class DNNSetup():
             x_test_path=datamodule_config.get('x_test'),
             x_indices=datamodule_config.get('x_indices', None),
             cv_file=datamodule_config.get('cv_file', None),
+            output_dir=self.output_dir,
+            preprocess_y=datamodule_config.get('preprocess_y', None),
             batch_size=datamodule_config.get('batch_size', 128),
-            seed=self.config.get('seed', 42)
+            seed=self.config.get('seed', 42),
         )
     
     def run_experiment(self):
         '''Performs the experiment on different cv splits'''
         # fit the model on different cv splits
         datamodule = self.setup_datamodule(self.config.get('datamodule_config'))
+        pca_y = datamodule.pca
         train_dataloaders, val_dataloaders = datamodule.train_dataloader(), datamodule.val_dataloader()
         scores = []
         for i, (tr_dl, vl_dl) in enumerate(zip(train_dataloaders, val_dataloaders)):
             model = self.setup_model(self.config.get('model_config', {}))
+            model.setup_pca(pca_y)
             trainer = self.setup_trainer(self.config.get('trainer_config', {}), i)
             trainer.fit(model, train_dataloaders=tr_dl, val_dataloaders=vl_dl)
             
@@ -90,3 +96,4 @@ class DNNSetup():
 
         # log best scores    
         logging.info(scores)
+        return np.mean(scores)
