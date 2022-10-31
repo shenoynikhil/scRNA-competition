@@ -1,0 +1,14 @@
+output_dir: /scratch/st-jiaruid-1/shenoy/projects/scRNA-competition/output/krr-rbf-exp-multiome-i32-o32
+paths:
+  x: /scratch/st-jiaruid-1/shenoy/svd-comp/train_input_multiome_svd32.pkl
+  y: /arc/project/st-jiaruid-1/yinian/multiome/sparse-data/train_multi_targets_values.sparse.npz
+  x_test: /scratch/st-jiaruid-1/shenoy/svd-comp/test_input_multiome_svd32.pkl
+seed: 42
+preprocessing: TruncatedSVD
+preprocessing_params:
+  output_dim: 32
+model: rbf_krr
+model_params:
+  scale: 10
+  alpha: 0.1
+prediction_agg: mean

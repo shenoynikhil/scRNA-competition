@@ -1,0 +1,15 @@
+output_dir: /scratch/st-jiaruid-1/shenoy/projects/scRNA-competition/output/tabnet-gpu-cite-wes
+experiment: ShallowModelKFold
+paths:
+  x: /scratch/st-jiaruid-1/shenoy/svd-comp/train_input_cite_svd128.pkl
+  y: /arc/project/st-jiaruid-1/yinian/multiome/sparse-data/train_cite_targets_values.sparse.npz
+  x_test: /scratch/st-jiaruid-1/shenoy/svd-comp/test_input_cite_svd128.pkl
+seed: 42
+preprocessing: TruncatedSVD
+preprocessing_params:
+  output_dim: 140
+model: tabnet
+model_params:
+  device_name: cuda
+prediction_agg: mean
+save_models: False
