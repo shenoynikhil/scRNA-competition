@@ -1,1 +1,1 @@
-from model import DNNSetup
+from .model import DNNSetup
