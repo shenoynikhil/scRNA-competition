@@ -1,6 +1,7 @@
 import logging
 import os
 
+import pickle
 import numpy as np
 import optuna
 import pytorch_lightning as pl
@@ -9,7 +10,6 @@ from pytorch_lightning.callbacks import (EarlyStopping, ModelCheckpoint,
 
 from .datamodule import DataModule
 from .pl_models import BaseNet, ContextConditioningNet
-from .utils import update_config
 
 
 class DNNSetup:
@@ -57,7 +57,7 @@ class DNNSetup:
         else:
             return NotImplementedError
 
-    def setup_trainer(self, trainer_config: dict, split: int):
+    def setup_trainer(self, trainer_config: dict, split: int, save_checkpoints: bool = True):
         """Setup trainer for experiments"""
         params = {
             # 'accelerator':'gpu',
@@ -67,11 +67,14 @@ class DNNSetup:
             "num_sanity_val_steps": trainer_config.get("num_sanity_val_steps", 0),
             "max_epochs": trainer_config.get("max_epochs", 200),
             "callbacks": [
-                ModelCheckpoint(filename="{epoch:02d}", monitor="val/pcc", mode="max"),
                 TQDMProgressBar(refresh_rate=1000),
                 EarlyStopping(monitor="val/pcc", mode="max", patience=20),
             ],
         }
+        if save_checkpoints:
+            params['callbacks'].append(
+                ModelCheckpoint(filename="{epoch:02d}", monitor="val/pcc", mode="max")
+            )
         return pl.Trainer(**params)
 
     def setup_datamodule(self, datamodule_config: dict):
@@ -130,7 +133,7 @@ class DNNSetup:
             for i, (tr_dl, vl_dl) in enumerate(zip(train_dataloaders, val_dataloaders)):
                 model = self.setup_model(self.config.get("model_config", {}))
                 model.setup_pca(pca)
-                trainer = self.setup_trainer(self.config.get("trainer_config", {}), i)
+                trainer = self.setup_trainer(self.config.get("trainer_config", {}), i, save_checkpoints=False)
                 trainer.fit(model, train_dataloaders=tr_dl, val_dataloaders=vl_dl)
 
                 # retrieve early stopping callback
@@ -156,8 +159,9 @@ class DNNSetup:
             n_jobs=-1,
         )
 
-        # logging best results
-        logging.info(f"Best results: {study.best_trial}")
+        # save best results
+        with open('study', "wb") as file:
+            pickle.dump(study, file)        
 
 
 def update_config(model_config, trial):
