@@ -113,6 +113,13 @@ class DNNSetup:
                 ].best_score.item()
             )
 
+            # save pcc_storage if pcc_storage created
+            if hasattr(model, 'pcc_storage'):
+                with open(
+                    os.path.join(self.output_dir, f'pcc_vals_{i}.pkl'), "wb"
+                ) as file:
+                    pickle.dump(model.pcc_storage, file)                  
+
         # log best scores
         logging.info(scores)
         return np.mean(scores)
