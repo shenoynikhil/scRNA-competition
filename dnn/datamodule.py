@@ -1,13 +1,14 @@
+import logging
+import pickle
 from os.path import join
+
 import numpy as np
 import pytorch_lightning as pl
-import pickle
 import torch
 from scipy import sparse
-import logging
-from sklearn.model_selection import KFold
 from sklearn.decomposition import TruncatedSVD
-from torch.utils.data import TensorDataset, DataLoader
+from sklearn.model_selection import KFold
+from torch.utils.data import DataLoader, TensorDataset
 
 
 class DataModule(pl.LightningDataModule):
@@ -28,7 +29,7 @@ class DataModule(pl.LightningDataModule):
         self.y_path = y_path
         self.x_test_path = x_test_path
         self.x_indices = x_indices
-        self.cv = 'random' if cv_file is None else cv_file
+        self.cv = "random" if cv_file is None else cv_file
         self.seed = seed
         self.preprocess_y = preprocess_y
         self.output_dir = output_dir
@@ -36,7 +37,7 @@ class DataModule(pl.LightningDataModule):
         self.batch_size = batch_size
 
         self.setup()
-    
+
     def perform_preprocessing(self, y):
         pca_y = TruncatedSVD(
             n_components=self.preprocess_y["output_dim"],
@@ -51,8 +52,8 @@ class DataModule(pl.LightningDataModule):
 
     def setup_cv(self, x, y, y_orig):
         self.train_datasets = []
-        self.val_datasets = []        
-        if self.cv == 'random':
+        self.val_datasets = []
+        if self.cv == "random":
             # perform KFold cross validation
             logging.info("Setting up random split cross validation")
             np.random.seed(self.seed)
@@ -67,17 +68,19 @@ class DataModule(pl.LightningDataModule):
                 x_train, y_train, y_orig_train = (
                     torch.Tensor(x[tr_indices, :]),
                     torch.Tensor(y[tr_indices, :]),
-                    torch.Tensor(y_orig[tr_indices, :])
+                    torch.Tensor(y_orig[tr_indices, :]),
                 )
                 x_val, y_val, y_orig_val = (
-                    torch.Tensor(x[val_indices, :]), 
+                    torch.Tensor(x[val_indices, :]),
                     torch.Tensor(y[val_indices, :]),
                     torch.Tensor(y_orig[val_indices, :]),
                 )
-                self.train_datasets.append(TensorDataset(x_train, y_train, y_orig_train))
+                self.train_datasets.append(
+                    TensorDataset(x_train, y_train, y_orig_train)
+                )
                 self.val_datasets.append(TensorDataset(x_val, y_val, y_orig_val))
         else:
-            logging.info('Performing CV based on splits provided') 
+            logging.info("Performing CV based on splits provided")
             # also read indices data
             self.x_indices = np.load(self.x_indices, allow_pickle=True)[
                 "index"
@@ -86,7 +89,7 @@ class DataModule(pl.LightningDataModule):
             # perform cv
             with open(self.cv, "rb") as f:
                 self.cv_splits = pickle.load(f)
-            
+
             for _, (cv_split, split_dict) in enumerate(self.cv_splits.items()):
                 # train ids and val ids to be used --> convert to set
                 train_ids_set = set(split_dict["train"])
@@ -97,25 +100,26 @@ class DataModule(pl.LightningDataModule):
                     [i for i, x in enumerate(self.x_indices) if x in train_ids_set],
                     [i for i, x in enumerate(self.x_indices) if x in val_ids_set],
                 )
-                
+
                 # preparing ith fold, for y_val we will use (not)transformed vector to calculate scores
                 logging.info(f"{cv_split}th fold")
                 x_train, y_train, y_orig_train = (
                     torch.Tensor(x[tr_indices, :]),
                     torch.Tensor(y[tr_indices, :]),
-                    torch.Tensor(y_orig[tr_indices, :])
+                    torch.Tensor(y_orig[tr_indices, :]),
                 )
                 x_val, y_val, y_orig_val = (
-                    torch.Tensor(x[val_indices, :]), 
+                    torch.Tensor(x[val_indices, :]),
                     torch.Tensor(y[val_indices, :]),
                     torch.Tensor(y_orig[val_indices, :]),
                 )
-                self.train_datasets.append(TensorDataset(x_train, y_train, y_orig_train))
+                self.train_datasets.append(
+                    TensorDataset(x_train, y_train, y_orig_train)
+                )
                 self.val_datasets.append(TensorDataset(x_val, y_val, y_orig_val))
 
-
-    def setup(self, stage='fit'):
-        if stage == 'fit' or stage is None:
+    def setup(self, stage="fit"):
+        if stage == "fit" or stage is None:
             # Load Data
             logging.info("Loading data")
             x = pickle.load(open(self.x_path, "rb"))
@@ -132,11 +136,11 @@ class DataModule(pl.LightningDataModule):
 
             # check splits
             self.setup_cv(x, y_transformed, y)
-        
-        elif stage == 'test' or stage is None:
+
+        elif stage == "test" or stage is None:
             x_test = pickle.load(open(self.x_test_path, "rb"))
             self.test_dataset = TensorDataset(torch.Tensor(x_test))
-        
+
     def train_dataloader(self):
         return [
             DataLoader(
@@ -145,7 +149,7 @@ class DataModule(pl.LightningDataModule):
             )
             for dataset in self.train_datasets
         ]
-    
+
     def val_dataloader(self):
         return [
             DataLoader(
@@ -154,9 +158,9 @@ class DataModule(pl.LightningDataModule):
             )
             for dataset in self.val_datasets
         ]
-        
+
     def test_dataloader(self):
         return DataLoader(
-            dataset = self.test_dataset,
+            dataset=self.test_dataset,
             batch_size=self.batch_size,
         )
