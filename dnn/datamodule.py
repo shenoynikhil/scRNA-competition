@@ -122,7 +122,10 @@ class DataModule(pl.LightningDataModule):
         if stage == "fit" or stage is None:
             # Load Data
             logging.info("Loading data")
-            x = pickle.load(open(self.x_path, "rb"))
+            if '.pkl' in self.x_path:
+                x = pickle.load(open(self.x_path, "rb"))
+            elif '.npz' in self.x_path:
+                x = sparse.load_npz(self.x_path).toarray()
 
             # load y as it is, since we need the original values to get metrics
             y = sparse.load_npz(self.y_path).toarray()
@@ -138,7 +141,13 @@ class DataModule(pl.LightningDataModule):
             self.setup_cv(x, y_transformed, y)
 
         elif stage == "test" or stage is None:
-            x_test = pickle.load(open(self.x_test_path, "rb"))
+            logging.info("loading test data")
+            if '.pkl' in self.x_test_path:
+                x_test = pickle.load(open(self.x_test_path, "rb"))
+            elif '.npz' in self.x_test_path:
+                x_test = sparse.load_npz(self.x_test_path).toarray()
+
+            # store as dataset
             self.test_dataset = TensorDataset(torch.Tensor(x_test))
 
     def train_dataloader(self):
