@@ -10,7 +10,7 @@ from pytorch_lightning.callbacks import (EarlyStopping, ModelCheckpoint,
 
 from .datamodule import DataModule
 from .pl_models import BaseNet, ContextConditioningNet, KaggleNet
-from .babel import BabelMultiome
+from .babel import Babel
 
 
 class DNNSetup:
@@ -57,8 +57,8 @@ class DNNSetup:
             )
         elif model_type == "KaggleNet":
             return KaggleNet(hp=model_config.get('hp'))
-        elif model_type == "BabelMultiome":
-            return BabelMultiome(hp=model_config.get('hp'))
+        elif model_type == "Babel":
+            return Babel(hp=model_config.get('hp'))
         else:
             return NotImplementedError
 

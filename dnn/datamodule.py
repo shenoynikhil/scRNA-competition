@@ -20,6 +20,7 @@ class DataModule(pl.LightningDataModule):
         output_dir: str,
         x_indices: str = None,
         cv_file: str = None,
+        eval_indices_path: str = None,
         batch_size: int = 128,
         preprocess_y: dict = None,
         seed: int = 42,
@@ -29,6 +30,7 @@ class DataModule(pl.LightningDataModule):
         self.y_path = y_path
         self.x_test_path = x_test_path
         self.x_indices = x_indices
+        self.eval_indices_path = eval_indices_path
         self.cv = "random" if cv_file is None else cv_file
         self.seed = seed
         self.preprocess_y = preprocess_y
@@ -117,6 +119,7 @@ class DataModule(pl.LightningDataModule):
                     TensorDataset(x_train, y_train, y_orig_train)
                 )
                 self.val_datasets.append(TensorDataset(x_val, y_val, y_orig_val))
+        del x_train, y_train, y_orig_train, x_val, y_val, y_orig_val
 
     def setup(self, stage="fit"):
         if stage == "fit" or stage is None:
@@ -139,6 +142,21 @@ class DataModule(pl.LightningDataModule):
 
             # check splits
             self.setup_cv(x, y_transformed, y)
+            del x, y, y_transformed
+            
+            # setup evaluation set
+            if self.cv != 'random' and self.eval_indices_path is not None:
+                logging.info("Setting up evaluation test set")
+                eval_ids = np.load(self.eval_indices_path)
+                eval_indices = [i for i, id_ in enumerate(self.x_indices) if id_ in eval_ids]
+
+                # construct tensors
+                x_eval, y_eval, y_orig_eval = (
+                    torch.Tensor(x[eval_indices, :]),
+                    torch.Tensor(y_transformed[eval_indices, :]),
+                    torch.Tensor(y[eval_indices, :]),
+                )
+                self.eval_dataset = TensorDataset(x_eval, y_eval, y_orig_eval)
 
         elif stage == "test" or stage is None:
             logging.info("loading test data")
@@ -150,7 +168,7 @@ class DataModule(pl.LightningDataModule):
             # store as dataset
             self.test_dataset = TensorDataset(torch.Tensor(x_test))
 
-    def train_dataloader(self):
+    def train_dataloader(self): 
         return [
             DataLoader(
                 dataset=dataset,
@@ -171,5 +189,11 @@ class DataModule(pl.LightningDataModule):
     def test_dataloader(self):
         return DataLoader(
             dataset=self.test_dataset,
+            batch_size=self.batch_size,
+        )
+    
+    def eval_dataloader(self):
+        return DataLoader(
+            dataset=self.eval_dataset,
             batch_size=self.batch_size,
         )
