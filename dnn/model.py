@@ -9,7 +9,8 @@ from pytorch_lightning.callbacks import (EarlyStopping, ModelCheckpoint,
                                          TQDMProgressBar)
 
 from .datamodule import DataModule
-from .pl_models import BaseNet, ContextConditioningNet
+from .pl_models import BaseNet, ContextConditioningNet, KaggleNet
+from .babel import BabelMultiome
 
 
 class DNNSetup:
@@ -54,14 +55,18 @@ class DNNSetup:
                 mse_weight=model_config.get("mse_weight", 1.0),
                 pcc_weight=model_config.get("pcc_weight", 0.0),
             )
+        elif model_type == "KaggleNet":
+            return KaggleNet(hp=model_config.get('hp'))
+        elif model_type == "BabelMultiome":
+            return BabelMultiome(hp=model_config.get('hp'))
         else:
             return NotImplementedError
 
     def setup_trainer(self, trainer_config: dict, split: int, save_checkpoints: bool = True):
         """Setup trainer for experiments"""
         params = {
-            # 'accelerator':'gpu',
-            # 'devices':1,
+            'accelerator':'gpu',
+            'devices':1,
             "default_root_dir": os.path.join(self.output_dir, f"cv_{split}"),
             "logger": False,
             "num_sanity_val_steps": trainer_config.get("num_sanity_val_steps", 0),

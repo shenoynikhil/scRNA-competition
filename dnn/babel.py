@@ -4,24 +4,10 @@ import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import torch.nn.functional as F
 from pytorch_lightning.utilities.types import EPOCH_OUTPUT
 
 from .loss import CorrCoeffMSELoss
-
-
-def corrcoeff(y_pred, y_true):
-    """Pearson Correlation Coefficient
-    Implementation in Torch, without shifting to cpu, detach, numpy (consumes time)
-    """
-    y_true_ = y_true - torch.mean(y_true, 1, keepdim=True)
-    y_pred_ = y_pred - torch.mean(y_pred, 1, keepdim=True)
-
-    num = (y_true_ * y_pred_).sum(1, keepdim=True)
-    den = torch.sqrt(
-        ((y_pred_**2).sum(1, keepdim=True)) * ((y_true_**2).sum(1, keepdim=True))
-    )
-
-    return (num / den).mean().item()
 
 
 class BaseNet(pl.LightningModule):
@@ -127,77 +113,18 @@ class BaseNet(pl.LightningModule):
         self.pcc_storage[split].append(pcc)
 
 
-class ContextConditioningNet(BaseNet):
-    """Extension of BaseNet using Conditioning"""
-
-    def __init__(self, context_dim: int = 10, beta: float = 1e-3, **kwargs):
-        self.context_dim = context_dim
-        self.beta = beta
-        super().__init__(**kwargs)
-
-    def setup_net(self, hp):
-        """Setup Network"""
-        layer_shapes, dropout = hp["layers"], hp["dropout"]
-        modules = [
-            nn.Dropout(dropout),
-            nn.Linear(self.input_dim, layer_shapes[0]),
-            nn.ReLU(),
-        ]
-        for i in range(len(hp["layers"]) - 1):
-            modules.append(nn.Linear(layer_shapes[i], layer_shapes[i + 1]))
-            modules.append(nn.ReLU())
-        self.final_linear = nn.Linear(layer_shapes[-1], self.output_dim)
-        self.base_net = nn.Sequential(*modules)
-
-        self.conditioning_layer = nn.Sequential(
-            *[nn.Linear(self.context_dim, layer_shapes[-1]), nn.ReLU()]
-        )
-        self.net = nn.ModuleList(
-            [
-                self.base_net,
-                self.conditioning_layer,
-                self.final_linear,
-            ]
-        )
-
-    def forward(self, x, z):
-        """Final_Linear_Layer(Base(x) + Conditioning(Z))"""
-        return self.net[2](self.net[0](x) + self.beta * self.net[1](z))
-
-    def generic_step(self, batch, batch_idx, split):
-        """Validation step"""
-        # x, y
-        x, y, y_orig = batch
-
-        x, z = x[:, : -self.context_dim], x[:, -self.context_dim :]
-
-        # get output of the network
-        preds = self(x, z)
-
-        # compute loss
-        loss = self.loss(preds, y)
-
-        return {
-            "loss": loss,
-            "preds": preds.detach(),
-            "y": y.detach(),
-            "y_orig": y_orig.detach(),
-        }
-
-
-class KaggleModel(nn.Module):
-    def __init__(self, cfg: dict):
+class BasicDNN(nn.Module):
+    def __init__(
+        self, 
+        input_size: int, 
+        output_size: int,
+        hidden_size: int = 1024, 
+        n_layers: int = 2,
+        activation = torch.nn.SiLU, 
+        dropout: bool = True,
+        skip_connection: bool = True
+    ):
         super().__init__()
-        input_size, hidden_size, n_layers, output_size, activation, dropout, skip_connection = (
-            cfg['N_FEATURES'], 
-            cfg['HIDDEN_SIZE'], 
-            cfg['N_LAYERS'], 
-            cfg['N_TARGETS'], 
-            cfg['ACTIVATION'], 
-            cfg['DROPOUT'], 
-            cfg['SKIP_CONNECTION']
-        )
-
         self.skip_connection = skip_connection
         self.encoder = torch.nn.Sequential(
             torch.nn.Linear(input_size, hidden_size),
@@ -235,9 +162,84 @@ class KaggleModel(nn.Module):
         return x
 
 
-class KaggleNet(BaseNet):    
+class BabelMultiome(pl.LightningModule):
+    def __init__(self, hp: dict):
+        super().__init__()
+        # setup network
+        self.setup_net(hp)
+
+    def setup_pca(self, pca):
+        self.pca = pca
+
     def setup_net(self, hp):
-        hp.update({
-            'ACTIVATION': torch.nn.SiLU,
-        })
-        self.net = KaggleModel(hp)
+        """Setup Network"""
+        latent_dim = hp.get('latent_dim', 16)
+        atac_dim = hp.get('atac_dim', 228942)
+        rna_dim = hp.get('rna_dim', 22050)
+
+        # contains, [rna_encoder, rna_decoder, atac_encoder, atac_decoder]
+        self.net = nn.ModuleList([
+            BasicDNN(rna_dim, latent_dim),
+            BasicDNN(latent_dim, rna_dim),
+            BasicDNN(atac_dim, latent_dim),
+            BasicDNN(latent_dim, atac_dim),
+        ])
+
+    def configure_optimizers(self):
+        return optim.Adam(
+            self.net.parameters(), 
+            lr=0.001
+        )
+    
+    def forward(self, x):
+        '''Get RNA from ATAC'''
+        return self.net[1](self.net[2](x))
+    
+    def compute_loss(
+        self, 
+        rna_decoded_from_rna, 
+        rna_decoded_from_atac,
+        atac_decoded_from_atac, 
+        atac_decoded_from_rna,
+        rna,
+        atac     
+    ):
+        '''Computes loss based on MSE'''
+        return (
+            F.mse_loss(rna_decoded_from_rna, rna) +
+            F.mse_loss(rna_decoded_from_atac, rna) +
+            F.mse_loss(atac_decoded_from_atac, atac) +
+            F.mse_loss(atac_decoded_from_rna, atac)
+        )
+    
+    def generic_step(self, batch, batch_idx, split):
+        """Validation step"""
+        # x (atac), y (rna)
+        x, y, y_orig = batch
+
+        # get latents using encoders
+        rna_latent = self.net[0](y)
+        atac_latent = self.net[2](x)
+        
+        # get decoded outputs
+        rna_decoded_from_rna = self.net[1](rna_latent)
+        rna_decoded_from_atac = self.net(1)(atac_latent)
+        atac_decoded_from_atac = self.net[3](atac_latent)
+        atac_decoded_from_rna = self.net[3](rna_latent)
+
+        # compute loss based on reconstruction
+        loss = self.compute_loss(
+            rna_decoded_from_rna, 
+            rna_decoded_from_atac,
+            atac_decoded_from_atac, 
+            atac_decoded_from_rna,
+            y, # rna
+            x # atac
+        )
+
+        return {
+            "loss": loss,
+            "preds": rna_decoded_from_atac.detach(),
+            "y": y.detach(),
+            "y_orig": y_orig.detach(),
+        }
