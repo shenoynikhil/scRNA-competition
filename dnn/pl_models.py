@@ -103,9 +103,9 @@ class BaseNet(pl.LightningModule):
 
         return {
             "loss": loss,
-            "preds": preds.detach(),
-            "y": y.detach(),
-            "y_orig": y_orig.detach(),
+            "preds": preds.detach().cpu(),
+            "y": y.detach().cpu(),
+            "y_orig": y_orig.detach().cpu(),
         }
 
     def generic_epoch_end(self, outputs: EPOCH_OUTPUT, split: str) -> None:

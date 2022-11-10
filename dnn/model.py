@@ -100,12 +100,15 @@ class DNNSetup:
         # fit the model on different cv splits
         datamodule = self.setup_datamodule(self.config.get("datamodule_config"))
         pca_y = datamodule.pca
-        train_dataloaders, val_dataloaders = (
-            datamodule.train_dataloader(),
-            datamodule.val_dataloader(),
-        )
+        splits = datamodule.splits
         scores = []
-        for i, (tr_dl, vl_dl) in enumerate(zip(train_dataloaders, val_dataloaders)):
+        for i, (tr_indices, val_indices) in enumerate(splits):
+            # create dataloaders based on indices
+            tr_dl, vl_dl = (
+                datamodule.get_dataloader(tr_indices),
+                datamodule.get_dataloader(val_indices),
+            )
+
             model = self.setup_model(self.config.get("model_config", {}))
             model.setup_pca(pca_y)
             trainer = self.setup_trainer(self.config.get("trainer_config", {}), i)
