@@ -21,7 +21,7 @@ def main(config):
         experiment.conduct_hpo(n_trials=100, subset_size=10000, train_subset_frac=0.8)
     if config["experiment"] == "SmartNeuralNetwork":
         experiment = SmartNN(config)
-        experiment.conduct_hpo(n_trials=100, subset_size=10000, train_subset_frac=0.8)
+        experiment.conduct_hpo(n_trials=1000, subset_size=25000, train_subset_frac=0.8)
     else:
         raise NotImplementedError
 

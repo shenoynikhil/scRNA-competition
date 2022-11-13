@@ -300,6 +300,7 @@ class SmartNN(BasicNN):
             ),
             n_trials=n_trials,
             n_jobs=1,
+            timeout=42000
         )
 
         # logging best results
