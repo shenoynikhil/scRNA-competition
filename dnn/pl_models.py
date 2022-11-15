@@ -113,11 +113,11 @@ class BaseNet(pl.LightningModule):
         # raise to original dimension
         if self.pca is not None:
             epoch_preds = torch.cat(
-                [pred["preds"] @ self.pca.components_ for pred in outputs]
+                [pred["preds"].cpu() @ self.pca.components_ for pred in outputs]
             )
         else:
-            epoch_preds = torch.cat([pred["preds"] for pred in outputs])
-        epoch_y = torch.cat([pred["y_orig"] for pred in outputs])
+            epoch_preds = torch.cat([pred["preds"].cpu() for pred in outputs])
+        epoch_y = torch.cat([pred["y_orig"].cpu() for pred in outputs])
 
         # compute pcc
         pcc = corrcoeff(epoch_preds, epoch_y)

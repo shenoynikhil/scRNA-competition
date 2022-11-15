@@ -6,7 +6,7 @@ datamodule_config:
   y: /arc/project/st-jiaruid-1/yinian/multiome/sparse-data/train_multi_targets_values.sparse.npz
   x_test: /arc/project/st-jiaruid-1/yinian/multiome/svd-comp/test_input_multiome_svd128.pkl
   preprocess_y:
-    output_dim: 300
+    output_dim: 500
 model_config:
   input_dim: 128
   output_dim: 100
