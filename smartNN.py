@@ -302,6 +302,7 @@ class SmartNN(BasicNN):
             lambda trial: objective(trial, x_train_final, y_final),
             n_trials=n_trials,
             n_jobs=1,
+            timeout=42000
         )
 
         # logging best results
