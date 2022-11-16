@@ -86,9 +86,9 @@ class DNNSetup:
         return DataModule(
             x_path=datamodule_config.get("x"),
             y_path=datamodule_config.get("y"),
-            x_test_path=datamodule_config.get("x_test"),
             x_indices=datamodule_config.get("x_indices", None),
             cv_file=datamodule_config.get("cv_file", None),
+            eval_indices_path=datamodule_config.get("eval_indices_path", None),
             output_dir=self.output_dir,
             preprocess_y=datamodule_config.get("preprocess_y", None),
             batch_size=datamodule_config.get("batch_size", 128),
@@ -101,6 +101,13 @@ class DNNSetup:
         datamodule = self.setup_datamodule(self.config.get("datamodule_config"))
         pca_y = datamodule.pca
         splits = datamodule.splits
+
+        # get test set data
+        test_splits = datamodule.setup_splits(stage='test')
+        if test_splits:
+            test_dl = datamodule.get_dataloader(test_splits)
+            test_scores = []
+
         scores = []
         for i, (tr_indices, val_indices) in enumerate(splits):
             # create dataloaders based on indices
@@ -112,7 +119,7 @@ class DNNSetup:
             model = self.setup_model(self.config.get("model_config", {}))
             model.setup_pca(pca_y)
             trainer = self.setup_trainer(self.config.get("trainer_config", {}), i)
-            trainer.fit(model, train_dataloaders=tr_dl, val_dataloaders=vl_dl)
+            trainer.fit(model, tr_dl, vl_dl)
 
             # retrieve early stopping callback
             scores.append(
@@ -120,6 +127,10 @@ class DNNSetup:
                     0
                 ].best_score.item()
             )
+            
+            if test_splits:
+                trainer.test(model, test_dl)
+                test_scores.append(model.pcc_storage['test'])
 
             # save pcc_storage if pcc_storage created
             if hasattr(model, 'pcc_storage'):
@@ -130,6 +141,10 @@ class DNNSetup:
 
         # log best scores
         logging.info(scores)
+        
+        if test_splits:
+            logging.info(f'Test Scores: {test_scores}, mean test score: {np.mean(test_scores)}')
+
         return np.mean(scores)
 
     def conduct_hpo(self, n_trials: int = 10):

@@ -13,11 +13,35 @@ from torch.utils.data import DataLoader, TensorDataset
 
 
 class DataModule(pl.LightningDataModule):
+    '''Datamodule for all deep learning based models
+    
+    Parameters
+    ----------
+    x_path: str
+        Path to loading the input data, could be in numpy or pickle format
+    y_path: str
+        Path to loading the target data, could be in numpy or pickle format
+    output_dir: str
+        Path to directory where artifacts are stored
+    x_indices: str
+        Basically a mapping of cell ids to the indices present in x. Used for splitting 
+        it into cross-validation and test splits
+    cv_file: str
+        Path to cell ids based cross validation splits, refer to `setup_splits()` to see
+        how they are used to create cross validation splits
+    eval_indices_path: str
+        Path to the test set cell ids
+    batch_size: int
+        Batch size while creating dataloaders, default is 128
+    preprocess_y: dict
+        Contain information on how much the y dimension to be reduced using TruncatedSVD
+    seed: int
+        Seed for determinism, default is 42
+    '''
     def __init__(
         self,
         x_path: str,
         y_path: str,
-        x_test_path: str,
         output_dir: str,
         x_indices: str = None,
         cv_file: str = None,
@@ -29,7 +53,6 @@ class DataModule(pl.LightningDataModule):
         super().__init__()
         self.x_path = x_path
         self.y_path = y_path
-        self.x_test_path = x_test_path
         self.x_indices = x_indices
         self.eval_indices_path = eval_indices_path
         self.cv = "random" if cv_file is None else cv_file
@@ -42,6 +65,15 @@ class DataModule(pl.LightningDataModule):
         self.setup()
 
     def setup(self, stage="fit"):
+        '''Sets up the things needed to use this datamodule in the train stage. 
+        This is called in the init function. To get dataloader, post initializing the
+        datamodule, just do,
+        ```
+        # some train indices
+        indices = datamodule.splits[0][0]
+        dl = datamodule.get_dataloader(indices)
+        ```
+        '''
         if stage == "fit" or stage is None:
             # Load Data
             logging.info("Loading data")
@@ -55,7 +87,7 @@ class DataModule(pl.LightningDataModule):
 
             # perform preprocessing if needed
             if self.preprocess_y:
-                self.y_transformed, self.y, self.pca = self.perform_preprocessing(y)
+                self.y_transformed, self.y, self.pca = self.perform_preprocessing(self.y)
             else:
                 self.y_transformed = self.y
                 self.pca = None
@@ -63,7 +95,10 @@ class DataModule(pl.LightningDataModule):
             self.splits = self.setup_splits(stage='fit')
 
     def setup_splits(self, stage: str = 'fit'):
-        '''Returns splits based on stage'''
+        '''Returns either of the following,
+        - Cross Validation Splits if in `fit` stage
+        - Test Indices if in `test` stage
+        '''
         if stage == 'fit':
             if self.cv == "random":
                 # perform KFold cross validation
@@ -95,10 +130,18 @@ class DataModule(pl.LightningDataModule):
                         [i for i, x in enumerate(self.x_indices) if x in v["val"]],
                     ) for v in cv_splits.values()
                 ]
+        elif stage == 'test':
+            if self.eval_indices_path:
+                # get cell ids to be used as a test set
+                self.eval_indices = np.load(self.eval_indices_path, allow_pickle=True).tolist()
+                return [i for i, x in enumerate(self.x_indices) if x in self.eval_indices]
+            else:
+                return None
         else:
             raise NotImplementedError
 
     def perform_preprocessing(self, y):
+        '''Reduces dimension of y if `preprocess_y` dict has been provided'''
         pca_y = TruncatedSVD(
             n_components=self.preprocess_y["output_dim"],
             random_state=self.seed,
