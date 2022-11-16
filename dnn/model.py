@@ -121,12 +121,12 @@ class DNNSetup:
             trainer = self.setup_trainer(self.config.get("trainer_config", {}), i)
             trainer.fit(model, tr_dl, vl_dl)
 
-            # retrieve early stopping callback
-            scores.append(
-                [cb for cb in trainer.callbacks if isinstance(cb, EarlyStopping)][
+            # retrieve best val score early stopping callback
+            score = [cb for cb in trainer.callbacks if isinstance(cb, EarlyStopping)][
                     0
-                ].best_score.item()
-            )
+            ].best_score.item()
+            scores.append(score)
+            logging.info(f"Score for this split {i}: {score}")
             
             if test_splits:
                 trainer.test(model, test_dl)
@@ -140,7 +140,7 @@ class DNNSetup:
                     pickle.dump(model.pcc_storage, file)                  
 
         # log best scores
-        logging.info(scores)
+        logging.info(f'Scores across all splits : {scores}')
         
         if test_splits:
             logging.info(f'Test Scores: {test_scores}, mean test score: {np.mean(test_scores)}')
