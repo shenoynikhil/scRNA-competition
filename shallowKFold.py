@@ -61,7 +61,9 @@ class ShallowModelKFold(ExperimentHelper):
 
             # fit and then delete training splits
             logging.info(f"Fitting the model for {i}th Fold")
-            model = self._fit_model(model, x_train, y_train, x_val, y[val_indices, :], pca_y)
+            model = self._fit_model(
+                model, x_train, y_train, x_val, y[val_indices, :], pca_y
+            )
             del x_train, y_train
 
             # save models if save_models=True
@@ -96,7 +98,7 @@ class ShallowModelKFold(ExperimentHelper):
         gc.collect()
 
         # get model
-        kwargs = {'pca': pca_y}
+        kwargs = {"pca": pca_y}
         model = self.setup_model(**kwargs)
 
         # run experiment
@@ -113,18 +115,22 @@ class ShallowModelKFold(ExperimentHelper):
     def _fit_model(self, model, x_train, y_train, x_val=None, y_val=None, pca_y=None):
         """Fit the model correctly"""
         if self.config["model"] == "tabnet":
+
             class PCC(Metric):
                 def __init__(self):
                     self._name = "pcc"
                     self._maximize = True
 
                 def __call__(self, y_true, y_score):
-                    y_true, y_score = y_true @ pca_y.components_, y_score @ pca_y.components_
+                    y_true, y_score = (
+                        y_true @ pca_y.components_,
+                        y_score @ pca_y.components_,
+                    )
                     corrsum = 0
                     for i in range(len(y_true)):
-                        corrsum += np.corrcoef(y_true[i], y_score[i])[1, 0]        
+                        corrsum += np.corrcoef(y_true[i], y_score[i])[1, 0]
                     return corrsum / y_true.shape[0]
-            
+
             # perform training
             model.fit(
                 x_train,
@@ -136,16 +142,17 @@ class ShallowModelKFold(ExperimentHelper):
             )
         elif self.config["model"] == "catboost":
             model.fit(
-                x_train, y_train, 
-                eval_set=[(x_val, y_val)], 
-                verbose=True, 
-                early_stopping_rounds=10
+                x_train,
+                y_train,
+                eval_set=[(x_val, y_val)],
+                verbose=True,
+                early_stopping_rounds=10,
             )
         else:
             model.fit(x_train, y_train)
 
         return model
-    
+
     def conduct_hpo(
         self,
         subset_size: int = 5000,
@@ -180,7 +187,9 @@ class ShallowModelKFold(ExperimentHelper):
             pca_y,
         ):
             # get hyperopt parameters and set it to model_params, will be used to set model
-            self.config["model_params"] = get_hypopt_space(self.config["model"], trial, self.seed)
+            self.config["model_params"] = get_hypopt_space(
+                self.config["model"], trial, self.seed
+            )
 
             train_len = int(train_subset_frac * x.shape[0])  # let's do random for now
             x_train, y_train, x_val, y_val, y_val_orig = (
