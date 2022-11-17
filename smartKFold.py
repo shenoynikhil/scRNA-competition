@@ -10,8 +10,9 @@ from utils import correlation_score
 
 
 class SmartKFold(ShallowModelKFold):
+    '''Takes into input cross val splits provided by user'''
     def read_data(self):
-        x_train_transformed, x_test_transformed, y = super().read_data()
+        x_train_transformed, y = super().read_data()
         # also read indices data
         self.x_indices = np.load(self.config["paths"]["x_indices"], allow_pickle=True)[
             "index"
@@ -24,11 +25,27 @@ class SmartKFold(ShallowModelKFold):
         with open(self.cv_path, "rb") as f:
             self.cv_splits = pickle.load(f)
 
-        return x_train_transformed, x_test_transformed, y
+        logging.info("Loading test indices")
+        eval_indices_cell_ids = np.load(
+            self.config["paths"]["eval_indices_path"], allow_pickle=True
+        ).tolist()
+        self.test_indices = [
+            i for i, x in enumerate(self.x_indices) if x in eval_indices_cell_ids
+        ]
 
-    def fit_model(self, x, y, y_orig, x_test, model, pca_y):
-        # for x_test predictions
-        scores, predictions = [], []
+        return x_train_transformed, y
+
+    def fit_model(
+        self, x, y, y_orig, model, pca_y
+    ):
+        # construct test set based on test_indices
+        x_test, y_test_orig = (
+            x[self.test_indices, :],
+            y_orig[self.test_indices, :],
+        )
+        
+        # list for scores and test_scores
+        scores, test_scores = [], []
         for i, (cv_split, split_dict) in enumerate(self.cv_splits.items()):
             # train ids and val ids to be used --> convert to set
             train_ids_set = set(split_dict["train"])
@@ -63,13 +80,23 @@ class SmartKFold(ShallowModelKFold):
             logging.info(f"Score for this val set: {score}")
             scores.append(score)
 
+            # calculate score for test set
+            test_score = correlation_score(y_test_orig, model.predict(x_test) @ pca_y.components_)
+            logging.info(f'Score on test set for this split: {test_score}')
+            test_scores.append(test_score)
+
             del x_val, y_val
             gc.collect()
 
-            # Perform test predictions with cross val model
-            predictions.append(model.predict(x_test) @ pca_y.components_)
-
         # Again garbage collection to reduce unnecessary memory usage
         gc.collect()
+        
+        # log mean CV scores
+        logging.info(f'Mean Test Score: {np.mean(test_scores)}')
+        logging.info(f'Mean CV Score: {np.mean(scores)}')
 
-        return self._post_processing_scores_and_predictions(predictions, scores)
+        # log all scores
+        logging.info(f"Scores on CV: {scores}")
+
+        # return CV score
+        return np.mean(scores)       

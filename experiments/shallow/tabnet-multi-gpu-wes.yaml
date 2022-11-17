@@ -11,5 +11,5 @@ preprocessing_params:
 model: tabnet
 model_params:
   device_name: cuda
-prediction_agg: mean
+
 save_models: False

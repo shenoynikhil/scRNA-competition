@@ -20,11 +20,10 @@ class ShallowModelKFold(ExperimentHelper):
         # Load Data
         logging.info("Loading data")
         x_train_transformed = pickle.load(open(self.config["paths"]["x"], "rb"))
-        x_test_transformed = pickle.load(open(self.config["paths"]["x_test"], "rb"))
 
         # load y as it is, since we need the original values to get metrics
         y = scipy.sparse.load_npz(self.config["paths"]["y"])
-        return x_train_transformed, x_test_transformed, y
+        return x_train_transformed, y
 
     def perform_preprocessing(self, y):
         pca_y = TruncatedSVD(
@@ -38,7 +37,7 @@ class ShallowModelKFold(ExperimentHelper):
             pickle.dump(pca_y, file)
         return y_transformed, y, pca_y
 
-    def fit_model(self, x, y, y_orig, x_test, model, pca_y):
+    def fit_model(self, x, y, y_orig, model, pca_y):
         # perform KFold cross validation
         logging.info("Setting up cross validation")
         np.random.seed(self.seed)
@@ -50,7 +49,7 @@ class ShallowModelKFold(ExperimentHelper):
         )
 
         # for x_test predictions
-        scores, predictions = [], []
+        scores = []
         for i, (tr_indices, val_indices) in enumerate(kf.split(all_row_indices)):
             # preparing ith fold, for y_val we will use (not)transformed vector to calculate scores
             logging.info(f"{i}th fold")
@@ -79,22 +78,18 @@ class ShallowModelKFold(ExperimentHelper):
             del x_val, y_val
             gc.collect()
 
-            # Perform test predictions with cross val model
-            predictions.append(model.predict(x_test) @ pca_y.components_)
-
-            # ---------- TODO: DELETE THE NEXT TWO LINES LATER ----------
-            if i == self.config.get("folds", 4):
-                break
-            # ---------- TODO: DELETE THE ABOVE TWO LINES LATER ----------
-
         # Again garbage collection to reduce unnecessary memory usage
         gc.collect()
 
-        return self._post_processing_scores_and_predictions(predictions, scores)
+        # log all scores
+        logging.info(f"Scores on CV: {scores}")
+
+        # return CV score
+        return np.mean(scores)
 
     def run_experiment(self):
         # get data
-        x_train_transformed, x_test_transformed, y = self.read_data()
+        x_train_transformed, y = self.read_data()
 
         # perform processing
         y_transformed, y, pca_y = self.perform_preprocessing(y)
@@ -109,7 +104,6 @@ class ShallowModelKFold(ExperimentHelper):
             x_train_transformed,
             y_transformed,
             y.toarray(),
-            x_test_transformed,
             model,
             pca_y,
         )
@@ -152,28 +146,6 @@ class ShallowModelKFold(ExperimentHelper):
 
         return model
     
-    def _post_processing_scores_and_predictions(self, predictions, scores):
-        # log all scores
-        logging.info(f"Scores on CV: {scores}")
-
-        # post processing final predictions before pickle saving them
-        if self.config.get("prediction_agg", "") == "mean":
-            # mean over cross val predictions
-            prediction = np.mean(predictions, axis=0)
-        else:
-            raise NotImplementedError
-
-        # save numpy array
-        if self.config.get("save_test_predictions", True):
-            pkl_filename = join(self.config["output_dir"], f"test_pred.pkl")
-            logging.info(f"Saving Predictions to {pkl_filename}")
-            makedirs(dirname(pkl_filename), exist_ok=True)
-            with open(pkl_filename, "wb") as file:
-                pickle.dump(prediction, file)
-
-        # return CV score
-        return np.mean(scores)       
-
     def conduct_hpo(
         self,
         subset_size: int = 5000,
@@ -186,7 +158,7 @@ class ShallowModelKFold(ExperimentHelper):
         """
 
         # get data
-        x_train_transformed, _, y = self.read_data()
+        x_train_transformed, y = self.read_data()
 
         # perform processing
         y_transformed, y, pca_y = self.perform_preprocessing(y)
