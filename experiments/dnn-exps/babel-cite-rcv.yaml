@@ -1,0 +1,16 @@
+experiment: DNN
+seed: 42
+output_dir: /scratch/st-jiaruid-1/shenoy/projects/scRNA-competition/output/dnn-exps/babel-cite-rcv
+datamodule_config:
+  x: /arc/project/st-jiaruid-1/yinian/multiome/sparse-data/train_cite_inputs_values.sparse.npz
+  y: /arc/project/st-jiaruid-1/yinian/multiome/sparse-data/train_cite_targets_values.sparse.npz
+  x_test: /arc/project/st-jiaruid-1/yinian/multiome/sparse-data/test_cite_inputs_values.sparse.npz
+  x_indices: /arc/project/st-jiaruid-1/yinian/multiome/sparse-data/train_cite_targets_idxcol.npz
+  cv_file: /arc/project/st-jiaruid-1/yinian/multiome/cv_splits_cite_seed_42_majority_frac_0.7_rest_equiprobable.pkl
+  eval_indices_path: /arc/project/st-jiaruid-1/yinian/multiome/cite_val_set_5000_0.75_day_7.npy
+model_config:
+  model_type: Babel
+  hp:
+    x_dim: 22050
+    y_dim: 140
+    latent_dim: 32

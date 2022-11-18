@@ -18,4 +18,4 @@ model_params:
   alpha: 1.136315321830222
   lambda_l2: 1.926631341633774e-05
   min_child_weight: 10.434709705231498
-prediction_agg: mean
+

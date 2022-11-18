@@ -10,4 +10,4 @@ preprocessing_params:
   output_dim: 140
 model: tabnet
 model_params:
-prediction_agg: mean
+

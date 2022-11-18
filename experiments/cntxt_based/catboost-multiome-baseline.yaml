@@ -11,4 +11,4 @@ preprocessing_params:
 model: catboost
 model_params:
   iterations: 500
-prediction_agg: mean
+

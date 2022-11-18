@@ -82,6 +82,10 @@ class BaseNet(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         """Validation step"""
         return self.generic_step(batch, batch_idx, "val")
+    
+    def test_step(self, batch, batch_idx):
+        """Test step"""
+        return self.generic_step(batch, batch_idx, "test")
 
     def training_epoch_end(self, outputs: EPOCH_OUTPUT) -> None:
         """Compute metrics at epoch level"""
@@ -89,6 +93,9 @@ class BaseNet(pl.LightningModule):
 
     def validation_epoch_end(self, outputs: EPOCH_OUTPUT) -> None:
         return self.generic_epoch_end(outputs, "val")
+    
+    def test_epoch_end(self, outputs: EPOCH_OUTPUT) -> None:
+        return self.generic_epoch_end(outputs, "test")
 
     def generic_step(self, batch, batch_idx, split):
         """Validation step"""
@@ -113,11 +120,11 @@ class BaseNet(pl.LightningModule):
         # raise to original dimension
         if self.pca is not None:
             epoch_preds = torch.cat(
-                [pred["preds"] @ self.pca.components_ for pred in outputs]
+                [pred["preds"].cpu() @ self.pca.components_ for pred in outputs]
             )
         else:
-            epoch_preds = torch.cat([pred["preds"] for pred in outputs])
-        epoch_y = torch.cat([pred["y_orig"] for pred in outputs])
+            epoch_preds = torch.cat([pred["preds"].cpu() for pred in outputs])
+        epoch_y = torch.cat([pred["y_orig"].cpu() for pred in outputs])
 
         # compute pcc
         pcc = corrcoeff(epoch_preds, epoch_y)

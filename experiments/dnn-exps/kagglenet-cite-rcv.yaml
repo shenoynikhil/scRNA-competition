@@ -1,0 +1,18 @@
+experiment: DNN
+seed: 42
+output_dir: /scratch/st-jiaruid-1/shenoy/projects/scRNA-competition/output/dnn-exps/kagglenet-cite-rcv
+datamodule_config:
+  x: /arc/project/st-jiaruid-1/yinian/multiome/sparse-data/train_cite_inputs_values.sparse.npz
+  y: /arc/project/st-jiaruid-1/yinian/multiome/sparse-data/train_cite_targets_values.sparse.npz
+  x_test: /arc/project/st-jiaruid-1/yinian/multiome/sparse-data/test_cite_inputs_values.sparse.npz
+model_config:
+  model_type: KaggleNet
+  hp:
+    N_FEATURES: 22050
+    HIDDEN_SIZE: 1024
+    N_LAYERS: 4
+    N_TARGETS: 140
+    SKIP_CONNECTION: False
+    DROPOUT: False
+  mse_weight: 0.0
+  pcc_weight: 1.0
