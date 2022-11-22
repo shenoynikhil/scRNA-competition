@@ -82,7 +82,7 @@ class BaseNet(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         """Validation step"""
         return self.generic_step(batch, batch_idx, "val")
-    
+
     def test_step(self, batch, batch_idx):
         """Test step"""
         return self.generic_step(batch, batch_idx, "test")
@@ -93,7 +93,7 @@ class BaseNet(pl.LightningModule):
 
     def validation_epoch_end(self, outputs: EPOCH_OUTPUT) -> None:
         return self.generic_epoch_end(outputs, "val")
-    
+
     def test_epoch_end(self, outputs: EPOCH_OUTPUT) -> None:
         return self.generic_epoch_end(outputs, "test")
 
@@ -195,14 +195,22 @@ class ContextConditioningNet(BaseNet):
 class KaggleModel(nn.Module):
     def __init__(self, cfg: dict):
         super().__init__()
-        input_size, hidden_size, n_layers, output_size, activation, dropout, skip_connection = (
-            cfg['N_FEATURES'], 
-            cfg['HIDDEN_SIZE'], 
-            cfg['N_LAYERS'], 
-            cfg['N_TARGETS'], 
-            cfg['ACTIVATION'], 
-            cfg['DROPOUT'], 
-            cfg['SKIP_CONNECTION']
+        (
+            input_size,
+            hidden_size,
+            n_layers,
+            output_size,
+            activation,
+            dropout,
+            skip_connection,
+        ) = (
+            cfg["N_FEATURES"],
+            cfg["HIDDEN_SIZE"],
+            cfg["N_LAYERS"],
+            cfg["N_TARGETS"],
+            cfg["ACTIVATION"],
+            cfg["DROPOUT"],
+            cfg["SKIP_CONNECTION"],
         )
 
         self.skip_connection = skip_connection
@@ -211,23 +219,27 @@ class KaggleModel(nn.Module):
             torch.nn.LayerNorm(hidden_size),
             activation(),
         )
-        self.blocks = torch.nn.ModuleList([
-            torch.nn.Sequential(
-                torch.nn.Linear(hidden_size, hidden_size),
-                torch.nn.LayerNorm(hidden_size),
-                activation(),
-            )
-            for _ in range(n_layers)]
+        self.blocks = torch.nn.ModuleList(
+            [
+                torch.nn.Sequential(
+                    torch.nn.Linear(hidden_size, hidden_size),
+                    torch.nn.LayerNorm(hidden_size),
+                    activation(),
+                )
+                for _ in range(n_layers)
+            ]
         )
 
         self.output = torch.nn.Sequential(
             *(
-                    [torch.nn.Dropout(0.1)] if dropout else [] +
-                    [
-                        torch.nn.Linear(hidden_size, output_size),
-                        torch.nn.LayerNorm(output_size),
-                        torch.nn.ReLU(),
-                    ]
+                [torch.nn.Dropout(0.1)]
+                if dropout
+                else []
+                + [
+                    torch.nn.Linear(hidden_size, output_size),
+                    torch.nn.LayerNorm(output_size),
+                    torch.nn.ReLU(),
+                ]
             )
         )
 
@@ -242,9 +254,11 @@ class KaggleModel(nn.Module):
         return x
 
 
-class KaggleNet(BaseNet):    
+class KaggleNet(BaseNet):
     def setup_net(self, hp):
-        hp.update({
-            'ACTIVATION': torch.nn.SiLU,
-        })
+        hp.update(
+            {
+                "ACTIVATION": torch.nn.SiLU,
+            }
+        )
         self.net = KaggleModel(hp)

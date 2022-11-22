@@ -1,16 +1,16 @@
 import logging
 import os
-
 import pickle
+
 import numpy as np
 import optuna
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import (EarlyStopping, ModelCheckpoint,
                                          TQDMProgressBar)
 
+from .babel import Babel
 from .datamodule import DataModule
 from .pl_models import BaseNet, ContextConditioningNet, KaggleNet
-from .babel import Babel
 
 
 class DNNSetup:
@@ -56,17 +56,19 @@ class DNNSetup:
                 pcc_weight=model_config.get("pcc_weight", 0.0),
             )
         elif model_type == "KaggleNet":
-            return KaggleNet(hp=model_config.get('hp'))
+            return KaggleNet(hp=model_config.get("hp"))
         elif model_type == "Babel":
-            return Babel(hp=model_config.get('hp'))
+            return Babel(hp=model_config.get("hp"))
         else:
             return NotImplementedError
 
-    def setup_trainer(self, trainer_config: dict, split: int, save_checkpoints: bool = True):
+    def setup_trainer(
+        self, trainer_config: dict, split: int, save_checkpoints: bool = True
+    ):
         """Setup trainer for experiments"""
         params = {
-            'accelerator':'gpu',
-            'devices':1,
+            "accelerator": "gpu",
+            "devices": 1,
             "default_root_dir": os.path.join(self.output_dir, f"cv_{split}"),
             "logger": False,
             "num_sanity_val_steps": trainer_config.get("num_sanity_val_steps", 0),
@@ -77,7 +79,7 @@ class DNNSetup:
             ],
         }
         if save_checkpoints:
-            params['callbacks'].append(
+            params["callbacks"].append(
                 ModelCheckpoint(filename="{epoch:02d}", monitor="val/pcc", mode="max")
             )
         return pl.Trainer(**params)
@@ -103,7 +105,7 @@ class DNNSetup:
         splits = datamodule.splits
 
         # get test set data
-        test_splits = datamodule.setup_splits(stage='test')
+        test_splits = datamodule.setup_splits(stage="test")
         if test_splits:
             test_dl = datamodule.get_dataloader(test_splits)
             test_scores = []
@@ -123,27 +125,32 @@ class DNNSetup:
 
             # retrieve best val score early stopping callback
             score = [cb for cb in trainer.callbacks if isinstance(cb, EarlyStopping)][
-                    0
+                0
             ].best_score.item()
             scores.append(score)
             logging.info(f"Score for this split {i}: {score}")
-            
+
             if test_splits:
                 trainer.test(model, test_dl)
-                test_scores.append(model.pcc_storage['test'])
+                test_scores.append(model.pcc_storage["test"])
 
             # save pcc_storage if pcc_storage created
-            if hasattr(model, 'pcc_storage'):
+            if hasattr(model, "pcc_storage"):
                 with open(
-                    os.path.join(self.output_dir, f'pcc_vals_{i}.pkl'), "wb"
+                    os.path.join(self.output_dir, f"pcc_vals_{i}.pkl"), "wb"
                 ) as file:
-                    pickle.dump(model.pcc_storage, file)                  
+                    pickle.dump(model.pcc_storage, file)
+
+            if self.config.get("stop_after_first_cv", False):
+                break
 
         # log best scores
-        logging.info(f'Scores across all splits : {scores}')
-        
+        logging.info(f"Scores across all splits : {scores}")
+
         if test_splits:
-            logging.info(f'Test Scores: {test_scores}, mean test score: {np.mean(test_scores)}')
+            logging.info(
+                f"Test Scores: {test_scores}, mean test score: {np.mean(test_scores)}"
+            )
 
         return np.mean(scores)
 
@@ -163,7 +170,9 @@ class DNNSetup:
             for i, (tr_dl, vl_dl) in enumerate(zip(train_dataloaders, val_dataloaders)):
                 model = self.setup_model(self.config.get("model_config", {}))
                 model.setup_pca(pca)
-                trainer = self.setup_trainer(self.config.get("trainer_config", {}), i, save_checkpoints=False)
+                trainer = self.setup_trainer(
+                    self.config.get("trainer_config", {}), i, save_checkpoints=False
+                )
                 trainer.fit(model, train_dataloaders=tr_dl, val_dataloaders=vl_dl)
 
                 # retrieve early stopping callback
@@ -190,8 +199,8 @@ class DNNSetup:
         )
 
         # save best results
-        with open('study', "wb") as file:
-            pickle.dump(study, file)        
+        with open("study", "wb") as file:
+            pickle.dump(study, file)
 
 
 def update_config(model_config, trial):

@@ -4,7 +4,7 @@ import torch.nn as nn
 
 class AsymmetricMSELoss(nn.Module):
     def forward(self, y_pred, y_true):
-        '''Compute MSE loss where non-zero values of y_true has a higher weight
+        """Compute MSE loss where non-zero values of y_true has a higher weight
         (no_of_zero_elements / total_elements)
 
         Arguments
@@ -13,14 +13,14 @@ class AsymmetricMSELoss(nn.Module):
             prediction tensor of shape [batch_size, output_dim]
         y_true: torch.Tensor
             target tensor of shape [batch_size, output_dim]
-        '''
+        """
         # compute positive weight per item (no_of_pos)
         d = y_true.shape[1]
         pos_weight_per_item = (((y_true == 0.0) * 1.0).sum(1) / d).repeat(d, 1).T
-        neg_weight_per_item = (1 - pos_weight_per_item)
+        neg_weight_per_item = 1 - pos_weight_per_item
 
         # mask
-        mask = torch.where(y_true == 0.0, neg_weight_per_item,pos_weight_per_item)
+        mask = torch.where(y_true == 0.0, neg_weight_per_item, pos_weight_per_item)
 
         # compute the mse_loss
         mse_loss = (y_true - y_pred) ** 2
