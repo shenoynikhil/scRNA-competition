@@ -49,6 +49,7 @@ class DataModule(pl.LightningDataModule):
         eval_indices_path: str = None,
         batch_size: int = 128,
         preprocess_y: dict = None,
+        normalize_y: bool = False,
         seed: int = 42,
     ):
         super().__init__()
@@ -59,6 +60,7 @@ class DataModule(pl.LightningDataModule):
         self.cv = "random" if cv_file is None else cv_file
         self.seed = seed
         self.preprocess_y = preprocess_y
+        self.normalize_y = normalize_y
         self.output_dir = output_dir
 
         self.batch_size = batch_size
@@ -85,6 +87,11 @@ class DataModule(pl.LightningDataModule):
 
             # load y as it is, since we need the original values to get metrics
             self.y = sparse.load_npz(self.y_path).toarray()
+
+            if self.normalize_y:
+                self.y = (self.y - np.mean(self.y, 1)[:, None]) / np.std(self.y, 1)[
+                    :, None
+                ]
 
             # perform preprocessing if needed
             if self.preprocess_y:
