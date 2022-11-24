@@ -31,18 +31,44 @@ class BaseNet(pl.LightningModule):
         self,
         input_dim: int = 128,
         output_dim: int = 100,
-        hp: dict = {
-            "layers": [170, 300, 480, 330, 770],
-            "dropout": 0.2,
-        },
+        num_layers: int = 5,
+        layer_dim: int = 200,
+        dropout: float = 0.2,
+        activation: str = "ReLU",
         mse_weight: float = 1.0,
         pcc_weight: float = 0.0,
     ):
+        """Initialization
+
+        Parameters
+        ----------
+        input_dim: int
+            Input dimension of input features
+        output_dim: int
+            Output dimension of target features
+        num_layers: int
+            Specifies how deep the neural network will be
+        layer_dim: int
+            Dimension of each inner layer
+        dropout: float
+            Specifies the `p` value of the dropout function
+        activation: str
+            Specifies which activation function to be used
+            One of ['ReLU', 'SeLU', 'tanh']
+        mse_weight: float
+            Weight of MSE loss to be used
+        pcc_weight: float
+            Weight of PCC loss to be used
+        """
         super().__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
+        self.num_layers = num_layers
+        self.layer_dim = layer_dim
+        self.dropout = dropout
+        self.activation = activation
 
-        self.setup_net(hp)
+        self.setup_net()
         self.loss = self.setup_loss(mse_weight, pcc_weight)
 
     def setup_pca(self, pca):
@@ -52,18 +78,29 @@ class BaseNet(pl.LightningModule):
         # store pcc values in each step
         self.pcc_storage = defaultdict(list)
 
-    def setup_net(self, hp):
+    def setup_activation(self):
+        """returns activation function based on activation"""
+        if self.activation == "ReLU":
+            return nn.ReLU()
+        elif self.activation == "SeLU":
+            return nn.SELU()
+        elif self.activation == "tanh":
+            return nn.Tanh()
+
+        raise NotImplementedError
+
+    def setup_net(self):
         """Setup Network"""
-        layer_shapes, dropout = hp["layers"], hp["dropout"]
         modules = [
-            nn.Dropout(dropout),
-            nn.Linear(self.input_dim, layer_shapes[0]),
-            nn.ReLU(),
+            nn.Linear(self.input_dim, self.layer_dim),
+            self.setup_activation(),
+            nn.Dropout(self.dropout),
         ]
-        for i in range(len(hp["layers"]) - 1):
-            modules.append(nn.Linear(layer_shapes[i], layer_shapes[i + 1]))
-            modules.append(nn.ReLU())
-        modules.append(nn.Linear(layer_shapes[-1], self.output_dim))
+        for _ in range(self.num_layers - 1):
+            modules.append(nn.Linear(self.layer_dim, self.layer_dim))
+            modules.append(self.setup_activation())
+            modules.append(nn.Dropout(self.dropout))
+        modules.append(nn.Linear(self.layer_dim, self.output_dim))
         self.net = nn.Sequential(*modules)
 
     def setup_loss(self, mse_weight: float, pcc_weight: float):
@@ -144,21 +181,22 @@ class ContextConditioningNet(BaseNet):
 
     def setup_net(self, hp):
         """Setup Network"""
-        layer_shapes, dropout = hp["layers"], hp["dropout"]
         modules = [
-            nn.Dropout(dropout),
-            nn.Linear(self.input_dim, layer_shapes[0]),
-            nn.ReLU(),
+            nn.Linear(self.input_dim, self.layer_dim),
+            self.setup_activation(),
+            nn.Dropout(self.dropout),
         ]
-        for i in range(len(hp["layers"]) - 1):
-            modules.append(nn.Linear(layer_shapes[i], layer_shapes[i + 1]))
-            modules.append(nn.ReLU())
-        self.final_linear = nn.Linear(layer_shapes[-1], self.output_dim)
+        for _ in range(self.num_layers - 1):
+            modules.append(nn.Linear(self.layer_dim, self.layer_dim))
+            modules.append(self.setup_activation())
+            modules.append(nn.Dropout(self.dropout))
+        modules.append(nn.Linear(self.layer_dim, self.output_dim))
         self.base_net = nn.Sequential(*modules)
 
         self.conditioning_layer = nn.Sequential(
-            *[nn.Linear(self.context_dim, layer_shapes[-1]), nn.ReLU()]
+            *[nn.Linear(self.context_dim, self.layer_dim), nn.ReLU()]
         )
+        self.final_linear = nn.Linear(self.layer_dim, self.output_dim)
         self.net = nn.ModuleList(
             [
                 self.base_net,

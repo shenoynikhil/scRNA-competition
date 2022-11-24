@@ -63,7 +63,8 @@ class CorrCoeffMSELoss(nn.Module):
             ((y_pred_**2).sum(1, keepdim=True))
             * ((y_true_**2).sum(1, keepdim=True))
         )
+        pcc_loss = 1 - (num / den).mean()
 
-        return self.pcc_weight * (
-            1 - (num / den).mean()
-        ) + self.mse_weight * self.mse_loss(y_pred, y_true)
+        return self.pcc_weight * pcc_loss + self.mse_weight * self.mse_loss(
+            y_pred, y_true
+        )

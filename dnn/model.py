@@ -35,25 +35,25 @@ class DNNSetup:
             return BaseNet(
                 input_dim=model_config.get("input_dim", 128),
                 output_dim=model_config.get("output_dim", 100),
-                hp={
-                    "layers": model_config.get("layers", [170, 300, 480, 330, 770]),
-                    "dropout": model_config.get("dropout", 0.2),
-                },
+                layer_dim=model_config.get("layer_dim", 300),
+                num_layers=model_config.get("num_layers", 4),
+                dropout=model_config.get("dropout", 0.2),
+                activation=model_config.get("activation", "ReLU"),
                 mse_weight=model_config.get("mse_weight", 1.0),
                 pcc_weight=model_config.get("pcc_weight", 0.0),
             )
         elif model_type == "ContextConditioningNet":
             return ContextConditioningNet(
-                context_dim=model_config.get("context_dim", 10),
                 input_dim=model_config.get("input_dim", 128),
                 output_dim=model_config.get("output_dim", 100),
-                beta=model_config.get("beta", 1e-3),
-                hp={
-                    "layers": model_config.get("layers", [170, 300, 480, 330, 770]),
-                    "dropout": model_config.get("dropout", 0.2),
-                },
+                layer_dim=model_config.get("layer_dim", 300),
+                dropout=model_config.get("dropout", 0.2),
+                num_layers=model_config.get("num_layers", 4),
+                activation=model_config.get("activation", "ReLU"),
                 mse_weight=model_config.get("mse_weight", 1.0),
                 pcc_weight=model_config.get("pcc_weight", 0.0),
+                beta=model_config.get("beta", 1e-3),
+                context_dim=model_config.get("context_dim", 10),
             )
         elif model_type == "KaggleNet":
             return KaggleNet(hp=model_config.get("hp"))
@@ -156,44 +156,42 @@ class DNNSetup:
 
     def conduct_hpo(self, n_trials: int = 10):
         """Conduct Hyperparameter Optimization using Optuna"""
-        # get datamodule
         datamodule = self.setup_datamodule(self.config.get("datamodule_config"))
-        train_dataloaders, val_dataloaders = (
-            datamodule.train_dataloader(),
-            datamodule.val_dataloader(),
-        )
+        pca_y = datamodule.pca
+        splits = datamodule.splits
 
-        def objective(trial, train_dataloaders, val_dataloaders, pca):
+        # define objective function
+        def objective(trial, splits, pca):
             self.config = update_config(self.config, trial)
 
             scores = []
-            for i, (tr_dl, vl_dl) in enumerate(zip(train_dataloaders, val_dataloaders)):
+            for i, (tr_indices, val_indices) in enumerate(splits):
+                # create dataloaders based on indices
+                tr_dl, vl_dl = (
+                    datamodule.get_dataloader(tr_indices),
+                    datamodule.get_dataloader(val_indices),
+                )
+
+                # initialize model
                 model = self.setup_model(self.config.get("model_config", {}))
                 model.setup_pca(pca)
-                trainer = self.setup_trainer(
-                    self.config.get("trainer_config", {}), i, save_checkpoints=False
-                )
-                trainer.fit(model, train_dataloaders=tr_dl, val_dataloaders=vl_dl)
+                trainer = self.setup_trainer(self.config.get("trainer_config", {}), i)
+                # fit model
+                trainer.fit(model, tr_dl, vl_dl)
 
-                # retrieve early stopping callback
-                scores.append(
-                    [cb for cb in trainer.callbacks if isinstance(cb, EarlyStopping)][
-                        0
-                    ].best_score.item()
-                )
+                # retrieve best val score early stopping callback
+                score = [
+                    cb for cb in trainer.callbacks if isinstance(cb, EarlyStopping)
+                ][0].best_score.item()
+                scores.append(score)
 
             return np.mean(scores)
 
         # run hyperopt
-        logging.info("Running hyperopt")
+        logging.info("Creating Optuna hyperopt strategy")
         study = optuna.create_study(study_name="hpo-run", direction="maximize")
         study.optimize(
-            lambda trial: objective(
-                trial,
-                train_dataloaders,
-                val_dataloaders,
-                datamodule.pca,
-            ),
+            lambda trial: objective(trial, splits, pca_y),
             n_trials=n_trials,
             n_jobs=-1,
         )
@@ -210,28 +208,44 @@ def update_config(model_config, trial):
     if model_type == "BaseNet":
         model_config.update(
             {
+                "dropout": trial.suggest_float(
+                    "dropout",
+                    low=0.1,
+                    high=0.9,
+                    step=0.1,
+                ),
+                "activation": trial.suggest_categorical(
+                    "activation", ["ReLU", "SeLU", "tanh"]
+                ),
+                "layer_dim": trial.suggest_int("layer_dim", low=50, high=500, step=50),
+                "num_layers": trial.suggest_int("num_layers", low=2, high=5, step=1),
                 "mse_weight": trial.suggest_categorical(
                     "mse_weight", [0.1 * x for x in range(11)]
                 ),
                 "pcc_weight": trial.suggest_categorical(
                     "mse_weight", [0.1 * x for x in range(11)]
-                ),
-                "dropout": trial.suggest_categorical(
-                    "dropout", [0.1 * x for x in range(5)]
                 ),
             }
         )
     elif model_type == "ContextConditioningNet":
         model_config.update(
             {
+                "dropout": trial.suggest_float(
+                    "dropout",
+                    low=0.1,
+                    high=0.9,
+                    step=0.1,
+                ),
+                "activation": trial.suggest_categorical(
+                    "activation", ["ReLU", "SeLU", "tanh"]
+                ),
+                "layer_dim": trial.suggest_int("layer_dim", low=50, high=500, step=50),
+                "num_layers": trial.suggest_int("num_layers", low=2, high=5, step=1),
                 "mse_weight": trial.suggest_categorical(
                     "mse_weight", [0.1 * x for x in range(11)]
                 ),
                 "pcc_weight": trial.suggest_categorical(
                     "mse_weight", [0.1 * x for x in range(11)]
-                ),
-                "dropout": trial.suggest_categorical(
-                    "dropout", [0.1 * x for x in range(5)]
                 ),
                 "beta": trial.suggest_float(
                     "beta", low=0.0001, high=1.0, step=0.0001, log=True
