@@ -1,0 +1,16 @@
+experiment: SmartKFold
+output_dir: /scratch/st-jiaruid-1/shenoy/projects/scRNA-competition/output/multi-final/tabular/lightgbm
+paths:
+  x: /scratch/st-jiaruid-1/shenoy/svd-comp/train_input_multiome_svd128.pkl
+  y: /arc/project/st-jiaruid-1/yinian/multiome/sparse-data/train_multi_targets_values.sparse.npz
+  x_indices: /arc/project/st-jiaruid-1/yinian/multiome/sparse-data/train_multi_targets_idxcol.npz
+  cv_file: /arc/project/st-jiaruid-1/yinian/multiome/cv_splits_multi_seed_42_majority_frac_0.7_rest_equiprobable.pkl
+  eval_indices_path: /arc/project/st-jiaruid-1/yinian/multiome/multi_val_set_10000_0.75_day_7.npy
+seed: 42
+preprocessing: TruncatedSVD
+preprocessing_params:
+  output_dim: 300
+model: lgb
+model_params:
+  n_estimators: 2000
+save_models: False
