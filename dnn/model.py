@@ -93,7 +93,7 @@ class DNNSetup:
             eval_indices_path=datamodule_config.get("eval_indices_path", None),
             output_dir=self.output_dir,
             preprocess_y=datamodule_config.get("preprocess_y", None),
-            normalize_y=datamodule_config.get("normalize_y", False),
+            normalize_y=datamodule_config.get("normalize_y", True),
             batch_size=datamodule_config.get("batch_size", 128),
             seed=self.config.get("seed", 42),
         )
