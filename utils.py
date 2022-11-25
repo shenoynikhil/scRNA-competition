@@ -42,9 +42,9 @@ def setup_model(config, **kwargs):
         return CatBoostRegressor(
             iterations=params["iterations"],
             loss_function=metrics.MultiRMSE(),
-            task_type=params.get("task_type", 'CPU'),
+            task_type=params.get("task_type", "CPU"),
             random_seed=config["seed"],
-            eval_metric=PCCCatBoostMetric(pca=kwargs.get('pca'))
+            eval_metric=PCCCatBoostMetric(pca=kwargs.get("pca")),
         )
     elif config["model"] == "xgboost":
         params = config["model_params"]
@@ -52,7 +52,7 @@ def setup_model(config, **kwargs):
         return MultiOutputRegressor(
             XGBRegressor(
                 n_estimators=params.get("n_estimators", 100),
-                objective="mae",
+                objective="reg:squarederror",
                 random_state=config["seed"],
             )
         )
@@ -76,27 +76,26 @@ def setup_model(config, **kwargs):
     elif config["model"] == "tabnet":
         params = config.get("model_params", {})
         return TabNetRegressor(
-            n_d=config.get('n_d', 16),
-            n_a=config.get('n_a', 16),
-            n_steps=config.get('n_steps', 3),
-            lambda_sparse = config.get('lambda_sparse', 0),
-            mask_type = config.get('mask_type', "entmax"),
-            scheduler_params = config.get(
-                'scheduler_params', 
-                dict(
-                    mode = "min", patience = 5, min_lr = 1e-5, factor = 0.9
-                )
+            n_d=config.get("n_d", 16),
+            n_a=config.get("n_a", 16),
+            n_steps=config.get("n_steps", 3),
+            lambda_sparse=config.get("lambda_sparse", 0),
+            mask_type=config.get("mask_type", "entmax"),
+            scheduler_params=config.get(
+                "scheduler_params",
+                dict(mode="min", patience=5, min_lr=1e-5, factor=0.9),
             ),
-            device_name=config.get('device_name', 'cpu'),
+            device_name=config.get("device_name", "cpu"),
             seed=config["seed"],
             verbose=1,
         )
     else:
         raise NotImplementedError
 
+
 def pcc_lightgbm(dy_true, dy_pred):
     """An eval metric that always returns the same value"""
-    metric_name = 'pcc'
+    metric_name = "pcc"
     value = correlation_score(dy_true, dy_pred)
     is_higher_better = True
     return metric_name, value, is_higher_better
@@ -160,25 +159,21 @@ def get_hypopt_space(model_type: str, trial, seed: int = 42):
             "seed": seed,
             "n_jobs": 1,
         }
-    elif model_type == 'tabnet':
-        x = trial.suggest_categorical('n_x', [4, 8, 16, 24, 32, 40])
+    elif model_type == "tabnet":
+        x = trial.suggest_categorical("n_x", [4, 8, 16, 24, 32, 40])
         return {
             "n_d": x,
             "n_a": x,
-            "n_steps": trial.suggest_int('n_steps', 3, 10, 1),
+            "n_steps": trial.suggest_int("n_steps", 3, 10, 1),
         }
-    elif model_type == 'smartNN':
-        num_layers = trial.suggest_int('num_layers', 3, 6)
+    elif model_type == "smartNN":
+        num_layers = trial.suggest_int("num_layers", 3, 6)
         layers = []
         for i in range(num_layers):
-            n_units = int(trial.suggest_int(f'n_units_{i}', 128, 1029))
+            n_units = int(trial.suggest_int(f"n_units_{i}", 128, 1029))
             layers.append(n_units)
-        dropout = trial.suggest_uniform('dropout', 0.0, 0.8)
-        return {
-            'layers': layers,
-            'dropout': dropout,
-            'epochs': 50
-        }
+        dropout = trial.suggest_uniform("dropout", 0.0, 0.8)
+        return {"layers": layers, "dropout": dropout, "epochs": 50}
     else:
         raise NotImplementedError
 
@@ -202,8 +197,8 @@ class PCCCatBoostMetric(MultiTargetCustomMetric):
         # weight parameter can be None.
         # Returns pair (error, weights sum)
         y_true, y_pred = (
-            np.stack(target, 1) @ self.pca.components_, 
-            np.stack(approxes, 1) @ self.pca.components_
+            np.stack(target, 1) @ self.pca.components_,
+            np.stack(approxes, 1) @ self.pca.components_,
         )
         corrsum = 0
         for i in range(len(y_true)):

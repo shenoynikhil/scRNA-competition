@@ -12,10 +12,10 @@ from pathlib import Path
 import yaml
 
 from basicNN import BasicNN
-from smartNN import SmartNN
+from dnn import DNNSetup
 from shallowKFold import ShallowModelKFold
 from smartKFold import SmartKFold
-from dnn import DNNSetup
+from smartNN import SmartNN
 
 
 def main(config):
